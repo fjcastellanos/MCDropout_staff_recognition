@@ -1,6 +1,6 @@
 import MuretData
 import utilsParameters
-import utilsIO
+import DataLoaderOwn
 import os
 import json
 from PIL import  Image as PILImage
@@ -79,7 +79,7 @@ def read_json_datafile(path_json: str, path_image: str, resize_shape = None, rea
         example_dict = json.load(f)
         #filename_image = example_dict['filename'].encode('utf8')
         if "pages" not in example_dict:
-            return MuretData.ImageExample(regions=[MuretData.Region(boxes, classes)], image=image, imageName=utilsIO.get_file_name(path_image), imagePath=path_image)
+            return MuretData.ImageExample(regions=[MuretData.Region(boxes, classes)], image=image, imageName=DataLoaderOwn.get_file_name(path_image), imagePath=path_image)
 
         pages = example_dict['pages']
 
@@ -124,7 +124,7 @@ def read_json_datafile(path_json: str, path_image: str, resize_shape = None, rea
                         else:
                             regionsList.append(MuretData.Region(box = boxes_images, label = category_int))
 
-    return MuretData.ImageExample(regions=regionsList, image=image, imageName=utilsIO.get_file_name(path_image), imagePath=path_image)
+    return MuretData.ImageExample(regions=regionsList, image=image, imageName=DataLoaderOwn.get_file_name(path_image), imagePath=path_image)
 
 def read_paths_dataset_files(path_listJsons: str):
     """Read a file that contains a list to the paths to different JSON files

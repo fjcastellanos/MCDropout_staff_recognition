@@ -56,7 +56,7 @@ def calculate_F1(y_true, y_pred, iou_threshold: float =0.5):
     num_true  = len(y_true)
 
     if num_preds == 0 and num_true == 0:
-        return 1, []
+        return 1, [], 0,0,0
 
     true_positives  = 0.0
     false_positives = num_preds
@@ -90,14 +90,21 @@ def calculate_F1(y_true, y_pred, iou_threshold: float =0.5):
         matrix_of_iou = np.delete(matrix_of_iou, max_index[0], axis=0)  # Remove row
 
     # Number of predictions that haven't been matched (false predictions)
+    
+    f1score, precision, recall = getF1_from_TP_FP_FN(true_positives, false_positives, false_negatives)
+    
+    return f1score, matched_ious, true_positives, false_positives, false_negatives
 
-    # Calculate precision, recall, and F1 score
-    precision = true_positives / (true_positives + false_positives) if num_preds > 0 else 0.
-    recall    = true_positives / (true_positives + false_negatives) if num_true  > 0 else 0.
+
+def getF1_from_TP_FP_FN(true_positives, false_positives, false_negatives):
+    
+    precision = true_positives / (true_positives + false_positives) if (true_positives + false_positives) > 0 else 0.
+    recall    = true_positives / (true_positives + false_negatives) if (true_positives + false_negatives)  > 0 else 0.
 
     if utilsParameters.DEBUG_FLAG:
       print(f'Precision: {precision} \t Recall: {recall}')
 
     # print(f'{precision} -- {recall}')
     f1score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
-    return f1score, matched_ious
+    
+    return f1score, precision, recall

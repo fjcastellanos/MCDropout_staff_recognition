@@ -3,6 +3,11 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+img
+logs
+results.txt
+results_run_DropoutCombination.txt
+
 # C extensions
 *.so
 

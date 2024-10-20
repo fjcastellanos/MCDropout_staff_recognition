@@ -1,7 +1,8 @@
 import utilsParameters
-import DataLoader
-import DataHolder
+import DataLoaderOwn
+import DataHolderOwn
 import torch
+from torch.utils.data import DataLoader
 
 def getModelFileName(dataset_name: str, dropout_value: float, uses_redimension_vertical: bool, uses_redimension_horizontal: bool):
     sae_file = 'SAE'
@@ -50,20 +51,20 @@ def generateTrainDatasetLoader(dataset_name: str, uses_redimension_vertical: boo
     batch_size = 1
 
     # Create datasets to train and val
-    datasetLoader = DataLoader.DatasetLoader(dataset_name)
+    datasetLoader = DataLoaderOwn.DatasetLoader(dataset_name)
 
     # Load the datasets
     train_json, train_img = datasetLoader.loadTrainPaths()
 
 
-    dataset_train = DataHolder.TrainMusicDataset(
+    dataset_train = DataHolderOwn.TrainMusicDataset(
         name=dataset_name,
         jsonPaths=train_json,
         imagesPaths=train_img,
         box_resize_vertical=uses_redimension_vertical,
         box_resize_horizontal=uses_redimension_horizontal,
         resize_shape=utilsParameters.SAE_IMAGE_SIZE,
-        transforms=DataLoader.get_transform()
+        transforms=DataLoaderOwn.get_transform()
         )
 
     # Training dataset
@@ -77,20 +78,20 @@ def generateValDatasetLoaderForTrain(dataset_name, uses_redimension_vertical, us
     batch_size = 1
 
     # Create datasets to train and val
-    datasetLoader = DataLoader.DatasetLoader(dataset_name)
+    datasetLoader = DataLoaderOwn.DatasetLoader(dataset_name)
 
     # Load the datasets
     val_json, val_img = datasetLoader.loadValPaths()
 
 
-    dataset_eval  = DataHolder.TrainMusicDataset(
+    dataset_eval  = DataHolderOwn.TrainMusicDataset(
         name=dataset_name,
         jsonPaths=val_json,
         imagesPaths=val_img,
         box_resize_vertical=uses_redimension_vertical,
         box_resize_horizontal=uses_redimension_horizontal,
         resize_shape=utilsParameters.SAE_IMAGE_SIZE,
-        transforms=DataLoader.get_transform()
+        transforms=DataLoaderOwn.get_transform()
         )
 
 
@@ -105,18 +106,18 @@ def generateValDatasetLoaderForTest(dataset_name):
     batch_size = 1
 
     # Create datasets to train and val
-    datasetLoader = DataLoader.DatasetLoader(dataset_name)
+    datasetLoader = DataLoaderOwn.DatasetLoader(dataset_name)
 
     # Load the datasets
     val_json, val_img = datasetLoader.loadValPaths()
 
 
-    dataset_eval  = DataHolder.TestMusicDataset(
+    dataset_eval  = DataHolderOwn.TestMusicDataset(
         name=dataset_name,
         jsonPaths=val_json,
         imagesPaths=val_img,
         resize_shape=utilsParameters.SAE_IMAGE_SIZE,
-        transforms=DataLoader.get_transform()
+        transforms=DataLoaderOwn.get_transform()
         )
 
 
@@ -132,18 +133,18 @@ def generateTestDatasetLoader(dataset_name):
     batch_size = 1
 
     # Create datasets to train and val
-    datasetLoader = DataLoader.DatasetLoader(dataset_name)
+    datasetLoader = DataLoaderOwn.DatasetLoader(dataset_name)
 
     # Load the datasets
     test_json, test_img = datasetLoader.loadTestPaths()
 
 
-    dataset_test  = DataHolder.TestMusicDataset(
+    dataset_test  = DataHolderOwn.TestMusicDataset(
         name=dataset_name,
         jsonPaths=test_json,
         imagesPaths=test_img,
         resize_shape=utilsParameters.SAE_IMAGE_SIZE,
-        transforms=DataLoader.get_transform())
+        transforms=DataLoaderOwn.get_transform())
 
 
     # Validation  dataset (no redimension in order to calculate metrics)

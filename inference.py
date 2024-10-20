@@ -1,11 +1,11 @@
 import torch
 import utilsParameters
-import DataLoader
+import DataLoaderOwn
 import DataHelper
 import ConnectedComponents
 import utilsIO
 import metrics
-import SAE
+import SAEModel
 import drawing
 
 import gc
@@ -47,7 +47,7 @@ def TFMForward(
 
     image = image.resize(utilsParameters.SAE_IMAGE_SIZE)
 
-    transforms = DataLoader.get_transform()
+    transforms = DataLoaderOwn.get_transform()
     transformedImage = transforms(image)
 
     with T.no_grad():
@@ -62,7 +62,7 @@ def TFMForward(
         if uses_redimension_vertical or uses_redimension_horizontal:
             vResize = utilsParameters.BBOX_REDIMENSIONED_RECOVER if uses_redimension_vertical   else 1
             hResize = utilsParameters.BBOX_REDIMENSIONED_RECOVER if uses_redimension_horizontal else 1
-            boxes = [DataLoader.resize_box(box, vResize=vResize, hResize=hResize) for box in boxes]
+            boxes = [DataLoaderOwn.resize_box(box, vResize=vResize, hResize=hResize) for box in boxes]
 
     return boxes
 
@@ -117,7 +117,7 @@ def TFMTest(
     test_best_bin_log_file = f'{folder_test}/{sae_file}.test'
 
     # Create model
-    model: SAE.SAE = torch.load(path_model, map_location=torch.device(utilsParameters.device))
+    model: SAEModel.SAE = torch.load(path_model, map_location=torch.device(utilsParameters.device))
     model.to(utilsParameters.device)
     model.eval()
 
@@ -133,8 +133,15 @@ def TFMTest(
 
     # Evaluation
     bin_F1score_sum = 0
+    bin_precision_sum = 0
+    bin_recall_sum = 0
     bin_IoUscore_sum = 0
-
+    matched_ious = []
+    tp = 0
+    fp = 0
+    fn = 0
+    total_gt_boxes = 0
+    
     with torch.no_grad():
         # Iterate over each example of the eval dataset
         for iteration, batch in enumerate(data_loader_test):
@@ -144,6 +151,7 @@ def TFMTest(
             # Get the inputs and labels from the batch
             image, target = batch
             targetBoxes = target.squeeze().numpy().tolist()
+            total_gt_boxes += len(targetBoxes) 
 
             # Forward pass
             result = DataHelper.forwardToModel(model=model,
@@ -165,15 +173,18 @@ def TFMTest(
             if uses_redimension_vertical or uses_redimension_horizontal:  # If we're using a resized BB, resize it to original
                 vResize = utilsParameters.BBOX_REDIMENSIONED_RECOVER if uses_redimension_vertical   else 1
                 hResize = utilsParameters.BBOX_REDIMENSIONED_RECOVER if uses_redimension_horizontal else 1
-                boxes = [DataLoader.resize_box(box, vResize=vResize, hResize=hResize) for box in boxes]
+                boxes = [DataLoaderOwn.resize_box(box, vResize=vResize, hResize=hResize) for box in boxes]
 
             # Calculate F1 and IoU
-            f1, matched_ious = metrics.calculate_F1(y_true=targetBoxes, y_pred=boxes, iou_threshold=0.5)
-
-            # Accumulate F1 and IoU score in the bin umbral used for this concrete example
-            bin_F1score_sum  += f1
-            bin_IoUscore_sum += np.mean(matched_ious) if len(matched_ious) > 0 else 0
-
+            f1, matched_ious_img, true_positives, false_positives, false_negatives = metrics.calculate_F1(y_true=targetBoxes, y_pred=boxes, iou_threshold=0.5)
+            for iou_bbox in matched_ious_img:
+                matched_ious.append(iou_bbox)
+                    
+            tp += true_positives
+            fp += false_positives
+            fn += false_negatives
+            
+            
             if save_test_img:
                 drawing.drawBoxesPredictedAndGroundTruth (
                     tensor_image=image,
@@ -193,15 +204,33 @@ def TFMTest(
 
 
     # Calculate mean of F1 and IoU scores
-    number_elements = len(data_loader_test)
+    bin_F1score_sum, bin_precision_sum, bin_recall_sum= metrics.getF1_from_TP_FP_FN(tp,fp,fn)
+    bin_IoUscore_sum += np.mean(matched_ious) if len(matched_ious) > 0 else 0
 
-    bin_F1score_sum /= number_elements
-    bin_IoUscore_sum /= number_elements
 
-    print(f'Tested {sae_file}: \t Bin Umbral {bin_umbral_for_model}, Combination {type_combination.value}, Times {times_pass_model} --> F1 - {bin_F1score_sum} | IoU - {bin_IoUscore_sum}')
 
+    tp_norm = tp / total_gt_boxes
+    fp_norm = fp / (tp + fp)
+    fn_norm = fn / total_gt_boxes
+    
+    # Create the "best umbral" info message
+    stringBestMsg = f'Test {sae_file}: \t Bin Threshold {bin_umbral_for_model}, Combination {type_combination.value}, Times {times_pass_model} --> F1 - {bin_F1score_sum} | IoU - {bin_IoUscore_sum}  | Prec - {bin_precision_sum}  | Recall - {bin_recall_sum} | TP - {tp}  | FP - {fp}  | FN - {fn} | TP-norm - {tp_norm}  | FP-norm - {fp_norm}  | FN-norm - {fn_norm}'    
+    print(stringBestMsg)
+    
+    resize_str = ""
+    if uses_redimension_vertical:
+        resize_str += 'V'
+    if uses_redimension_horizontal:
+        resize_str += 'H'
+        
+    logs = "Dataset;Partition;model;Resize;dropoutTrain;dropoutVal;Repetitions;Combination;VoteTH;BinTH;TotalGTBoxes;F1;IoU;Prec;Recall;TP;FP;FN;TP-norm;FP-norm;FN-norm;\n"
+    logs += f'{dataset_name};test;{sae_file};{resize_str};{dropout_value};{val_dropout};{times_pass_model};{type_combination.value};{votes_threshold};{bin_umbral_for_model};{total_gt_boxes};{bin_F1score_sum};{bin_IoUscore_sum};{bin_precision_sum};{bin_recall_sum};{tp};{fp};{fn};{tp_norm};{fp_norm};{fn_norm}'    
+    
+    
+    
     # Save in a file the F1 and IoU metrics
     if save_test_info:
         with open(test_best_bin_log_file, 'w') as f:
             f.write(f'F1: {bin_F1score_sum}\nIoU: {bin_IoUscore_sum}\n Test model {sae_file} with Bin Umbral {bin_umbral_for_model}, Combination {type_combination.value}, Times {times_pass_model}')
 
+    return logs

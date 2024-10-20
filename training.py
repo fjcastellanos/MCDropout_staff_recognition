@@ -1,10 +1,10 @@
 import gc
 import torch
 import DataHelper
-import DataLoader
+import DataLoaderOwn
 import utilsParameters
 import utilsTraining
-import SAE
+from SAEModel import SAE
 import drawing
 import utilsIO
 import ConnectedComponents
@@ -250,6 +250,7 @@ def TFMValidation(
     print(f'Evaluating {sae_file}')
 
     # Create model
+    
     model: SAE = torch.load(path_model, map_location=torch.device(utilsParameters.device))
     model.to(utilsParameters.device)
 
@@ -266,8 +267,14 @@ def TFMValidation(
 
     # Evaluation
     bin_F1score_map = {i: 0.0 for i in utilsParameters.BIN_UMBRALS}
+    bin_precision_map = {i: 0.0 for i in utilsParameters.BIN_UMBRALS}
+    bin_recall_map = {i: 0.0 for i in utilsParameters.BIN_UMBRALS}
     bin_IoUscore_map = {i: 0.0 for i in utilsParameters.BIN_UMBRALS}
-
+    matched_ious_per_th = {}
+    tp_per_th = {}
+    fp_per_th = {}
+    fn_per_th = {}
+    total_gt_boxes = 0
     with torch.no_grad():
         # Iterate over each example of the eval dataset
         for iteration, batch in enumerate(data_loader_eval):
@@ -277,7 +284,8 @@ def TFMValidation(
             # Get the inputs and labels from the batch
             image, target = batch
             targetBoxes = target.squeeze().numpy().tolist()
-
+            total_gt_boxes += len(targetBoxes) 
+            
             # Forward pass
             result = DataHelper.forwardToModel(model=model,
                                     image=image,
@@ -290,6 +298,14 @@ def TFMValidation(
                 if utilsParameters.DEBUG_FLAG:
                     print(f'\r\tTesting with {bin_umbral} binarization umbral', end='')
 
+                if bin_umbral not in matched_ious_per_th:
+                    matched_ious_per_th[bin_umbral] = []
+                
+                if bin_umbral not in tp_per_th:
+                    tp_per_th[bin_umbral] = 0
+                    fp_per_th[bin_umbral] = 0
+                    fn_per_th[bin_umbral] = 0
+                
                 # Extract BB from prediction
                 boxes = ConnectedComponents.getConnectedComponents(result,
                                                bin_threshold_percentaje=bin_umbral,
@@ -299,29 +315,30 @@ def TFMValidation(
                 if uses_redimension_vertical or uses_redimension_horizontal:  # If we're using a resized BB, resize it to original
                     vResize = utilsParameters.BBOX_REDIMENSIONED_RECOVER if uses_redimension_vertical   else 1
                     hResize = utilsParameters.BBOX_REDIMENSIONED_RECOVER if uses_redimension_horizontal else 1
-                    boxes = [DataLoader.resize_box(box, vResize=vResize, hResize=hResize) for box in boxes]
+                    boxes = [DataLoaderOwn.resize_box(box, vResize=vResize, hResize=hResize) for box in boxes]
 
                 # Calculate F1 and IoU
-                f1, matched_ious = metrics.calculate_F1(y_true = targetBoxes, y_pred = boxes, iou_threshold=0.5)
-
+                f1, matched_ious_img, true_positives, false_positives, false_negatives = metrics.calculate_F1(y_true = targetBoxes, y_pred = boxes, iou_threshold=0.5)
+                for iou_bbox in matched_ious_img:
+                    matched_ious_per_th[bin_umbral].append(iou_bbox)
+                
+                
+                tp_per_th[bin_umbral] += true_positives
+                fp_per_th[bin_umbral] += false_positives
+                fn_per_th[bin_umbral] += false_negatives
+                    
                 # Accumulate F1 and IoU score in the bin umbral used for this concrete example
-                bin_F1score_map[bin_umbral]  += f1
-                bin_IoUscore_map[bin_umbral] += np.mean(matched_ious) if len(matched_ious) > 0 else 0
-
+                
             if utilsParameters.DEBUG_FLAG:
                 print()
 
             torch.cuda.empty_cache()
             # gc.collect()
 
+    for bin_umbral in utilsParameters.BIN_UMBRALS:
+        bin_F1score_map[bin_umbral], bin_precision_map[bin_umbral], bin_recall_map[bin_umbral]  = metrics.getF1_from_TP_FP_FN(tp_per_th[bin_umbral], fp_per_th[bin_umbral], fn_per_th[bin_umbral])
+        bin_IoUscore_map[bin_umbral] = np.mean(matched_ious_per_th[bin_umbral]) if len(matched_ious_per_th[bin_umbral]) > 0 else 0
 
-    # Calculate mean of F1 and IoU scores
-    number_elements = len(data_loader_eval)
-    for key in bin_F1score_map:
-        bin_F1score_map[key] /= number_elements
-
-    for key in bin_IoUscore_map:
-        bin_IoUscore_map[key] /= number_elements
 
     # Calculate mean of each bin theshold and decide max
     best_bin_threshold = max(bin_F1score_map, key=bin_F1score_map.get)
@@ -337,11 +354,24 @@ def TFMValidation(
         for k in common_keys:
             best_bin_threshold = best_bin_threshold if bin_IoUscore_map[best_bin_threshold] > bin_IoUscore_map[k] else k
 
-
+    
+    tp_norm = tp_per_th[best_bin_threshold] / total_gt_boxes
+    fp_norm = fp_per_th[best_bin_threshold] / (tp_per_th[best_bin_threshold] + fp_per_th[best_bin_threshold]) if ((tp_per_th[best_bin_threshold] + fp_per_th[best_bin_threshold]))> 0 else 0.
+    fn_norm = fn_per_th[best_bin_threshold] / total_gt_boxes
+    
     # Create the "best umbral" info message
-    stringBestMsg = f'Evaluated {sae_file}: \t Bin Threshold {best_bin_threshold} --> F1 - {bin_F1score_map[best_bin_threshold]} | IoU - {bin_IoUscore_map[best_bin_threshold]}'
+    stringBestMsg = f'Validation {sae_file}: \t Bin Threshold {best_bin_threshold} --> F1 - {bin_F1score_map[best_bin_threshold]} | IoU - {bin_IoUscore_map[best_bin_threshold]}  | Prec - {bin_precision_map[best_bin_threshold]}  | Recall - {bin_recall_map[best_bin_threshold]} | TP - {tp_per_th[best_bin_threshold]}  | FP - {fp_per_th[best_bin_threshold]}  | FN - {fn_per_th[best_bin_threshold]} | TP-norm - {tp_norm}  | FP-norm - {fp_norm}  | FN-norm - {fn_norm}'    
     print(stringBestMsg)
 
+    resize_str = ""
+    if uses_redimension_vertical:
+        resize_str += 'V'
+    if uses_redimension_horizontal:
+        resize_str += 'H'
+        
+    logs = "Dataset;Partition;model;Resize;dropoutTrain;dropoutVal;Repetitions;Combination;VoteTH;BinTH;TotalGTBoxes;F1;IoU;Prec;Recall;TP;FP;FN;TP-norm;FP-norm;FN-norm;\n"
+    logs += f'{dataset_name};val;{sae_file};{resize_str};{dropout_value};{val_dropout};{times_pass_model};{type_combination.value};{votes_threshold};{best_bin_threshold};{total_gt_boxes};{bin_F1score_map[best_bin_threshold]};{bin_IoUscore_map[best_bin_threshold]};{bin_precision_map[best_bin_threshold]};{bin_recall_map[best_bin_threshold]};{tp_per_th[best_bin_threshold]};{fp_per_th[best_bin_threshold]};{fn_per_th[best_bin_threshold]};{tp_norm};{fp_norm};{fn_norm}'    
+    
     if save_val_imgs:
         images_data_loader_eval = DataHelper.generateValDatasetLoaderForTest (
             dataset_name=dataset_name
@@ -364,7 +394,7 @@ def TFMValidation(
                 if uses_redimension_vertical or uses_redimension_horizontal:  # If we're using a resized BB, resize it to original
                     vResize = utilsParameters.BBOX_REDIMENSIONED_RECOVER if uses_redimension_vertical   else 1
                     hResize = utilsParameters.BBOX_REDIMENSIONED_RECOVER if uses_redimension_horizontal else 1
-                    boxes = [DataLoader.resize_box(box, vResize=vResize, hResize=hResize) for box in boxes]
+                    boxes = [DataLoaderOwn.resize_box(box, vResize=vResize, hResize=hResize) for box in boxes]
 
                 image_save_path = f'{val_img_folder}/{iteration}.png'
                 print(f'Saving image in {image_save_path}')
@@ -391,4 +421,4 @@ def TFMValidation(
         with open(val_iou_log_file, 'w') as f:
             f.write(stringIoUList)
 
-    return best_bin_threshold
+    return best_bin_threshold, logs

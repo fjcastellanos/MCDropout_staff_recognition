@@ -1,12 +1,12 @@
 
 import torch
-import DataLoader
+import DataLoaderOwn
 import MuretData
 import utilsIO
 import utilsParameters
 
 class TrainMusicDataset(torch.utils.data.Dataset):
-    def __init__(self, name, jsonPaths: list[str], imagesPaths: list[str], resize_shape = None, transforms = DataLoader.get_transform(), box_resize_vertical = False, box_resize_horizontal = False):
+    def __init__(self, name, jsonPaths: list[str], imagesPaths: list[str], resize_shape = None, transforms = DataLoaderOwn.get_transform(), box_resize_vertical = False, box_resize_horizontal = False):
         """
         Arguments:
             name: Name of the dataset (b-59-80, Seils, Mus-Trad-...)
@@ -43,7 +43,7 @@ class TrainMusicDataset(torch.utils.data.Dataset):
         if self.box_resize_vertical or self.box_resize_horizontal:
             vResize = utilsParameters.BBOX_REDIMENSION if self.box_resize_vertical else 1
             hResize = utilsParameters.BBOX_REDIMENSION if self.box_resize_horizontal else 1
-            draw_boxes = [DataLoader.resize_box(box, vResize = vResize, hResize = hResize) for box in draw_boxes]
+            draw_boxes = [DataLoaderOwn.resize_box(box, vResize = vResize, hResize = hResize) for box in draw_boxes]
 
         target = {}
         target["boxes"] = boxes
@@ -51,7 +51,7 @@ class TrainMusicDataset(torch.utils.data.Dataset):
         target["name"]  = example.get_name()
 
         width, height = img.size
-        targetImage = DataLoader.draw_back_white_bb_image(height=height, width=width, boxes=draw_boxes)
+        targetImage = DataLoaderOwn.draw_back_white_bb_image(height=height, width=width, boxes=draw_boxes)
 
         if self.transforms is not None:
             img = self.transforms(img)
@@ -66,7 +66,7 @@ class TrainMusicDataset(torch.utils.data.Dataset):
         return len(self.imagesPaths)
 
 class TestMusicDataset(torch.utils.data.Dataset):
-    def __init__(self, name, jsonPaths: list[str], imagesPaths: list[str], resize_shape = None, transforms = DataLoader.get_transform()):
+    def __init__(self, name, jsonPaths: list[str], imagesPaths: list[str], resize_shape = None, transforms = DataLoaderOwn.get_transform()):
         """
         Arguments:
             name: Name of the dataset (b-59-80, Seils, Mus-Trad-...)
