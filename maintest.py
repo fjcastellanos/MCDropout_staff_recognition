@@ -195,8 +195,8 @@ def run_DropoutCombination(config):
             uses_redimension_horizontal=uses_redimension_horizontal,
             uses_redimension_vertical=uses_redimension_vertical,
             train_dropout=0.2,
-            val_dropout=[.2,.3,.4,.5],
-            times_pass_model= [25,50,75,100,200,300,400,500,750,1000],
+            val_dropout=[.1,.2,.3,.4,.5],
+            times_pass_model= [1,2,5,10,25,50,75,100,200,300,400,500,750,1000],
             type_combination=[utilsParameters.PredictionsCombinationType.MEAN, utilsParameters.PredictionsCombinationType.MAX, utilsParameters.PredictionsCombinationType.VOTES]
             ),
         utilsParameters.ForwardParameters(
