@@ -204,6 +204,7 @@ def TFMValidation(
     # Crear cache
     gc.collect()
     torch.cuda.empty_cache()
+    utilsParameters.init()
 
     # Generate path of the saved model
     sae_file = DataHelper.getModelFileName (

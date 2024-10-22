@@ -92,3 +92,17 @@ class ForwardParameters:
       self.val_dropout = val_dropout
       self.times_pass_model = times_pass_model
       self.type_combination = type_combination
+
+def init():
+   import random
+   import numpy as np 
+   import torch 
+   import os
+
+   seed_value = 122
+   os.environ['PYTHONHASHSEED'] = str(seed_value)
+   random.seed(seed_value)
+   np.random.seed(seed_value)
+   #tf.random.set_seed(seed_value)
+   torch.manual_seed(seed_value)
+
