@@ -211,9 +211,9 @@ def TFMTest(
 
 
 
-    tp_norm = tp / total_gt_boxes
-    fp_norm = fp / (tp + fp)
-    fn_norm = fn / total_gt_boxes
+    tp_norm = tp / total_gt_boxes if total_gt_boxes > 0 else 0.
+    fp_norm = fp / (tp + fp) if (tp + fp) > 0 else 0.
+    fn_norm = fn / total_gt_boxes if total_gt_boxes > 0 else 0. 
     
     # Create the "best umbral" info message
     stringBestMsg = f'Test {sae_file}: \t Bin Threshold {bin_umbral_for_model}, Combination {type_combination.value}, Times {times_pass_model} --> F1 - {bin_F1score_sum} | IoU - {bin_IoUscore_sum}  | Prec - {bin_precision_sum}  | Recall - {bin_recall_sum} | TP - {tp}  | FP - {fp}  | FN - {fn} | TP-norm - {tp_norm}  | FP-norm - {fp_norm}  | FN-norm - {fn_norm}'    
