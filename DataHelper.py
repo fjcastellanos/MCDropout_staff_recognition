@@ -43,8 +43,8 @@ def getLogsTestFolder(val_dropout: float, times_pass_model: int, type_combinatio
 def getImgsValidationFolder(val_dropout: float, times_pass_model: int, type_combination: utilsParameters.PredictionsCombinationType, dataset_name: str, model_name: str):
     return f'{utilsParameters.DRIVE_VAL_IMG_FOLDER}/{type_combination.name}/D{val_dropout}/T{times_pass_model}/{dataset_name}/{model_name}'
 
-def getImgsTestFolder(val_dropout: float, times_pass_model: int, type_combination: utilsParameters.PredictionsCombinationType, dataset_name: str, model_name: str):
-    return f'{utilsParameters.DRIVE_TEST_IMG_FOLDER}/{type_combination.name}/D{val_dropout}/T{times_pass_model}/{dataset_name}/{model_name}'
+def getImgsTestFolder(val_dropout: float, times_pass_model: int, type_combination: utilsParameters.PredictionsCombinationType, dataset_name_train: str, dataset_name_test: str, model_name: str):
+    return f'{utilsParameters.DRIVE_TEST_IMG_FOLDER}/{type_combination.name}/D{val_dropout}/T{times_pass_model}/{dataset_name_train}/{dataset_name_test}/{model_name}'
 
 
 def generateTrainDatasetLoader(dataset_name: str, uses_redimension_vertical: bool, uses_redimension_horizontal: bool):

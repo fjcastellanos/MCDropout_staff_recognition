@@ -99,7 +99,7 @@ def init():
    import torch 
    import os
 
-   seed_value = 122
+   seed_value = 145
    os.environ['PYTHONHASHSEED'] = str(seed_value)
    random.seed(seed_value)
    np.random.seed(seed_value)

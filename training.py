@@ -370,8 +370,8 @@ def TFMValidation(
     if uses_redimension_horizontal:
         resize_str += 'H'
         
-    logs = "Dataset;Partition;model;Resize;dropoutTrain;dropoutVal;Repetitions;Combination;VoteTH;BinTH;TotalGTBoxes;F1;IoU;Prec;Recall;TP;FP;FN;TP-norm;FP-norm;FN-norm;\n"
-    logs += f'{dataset_name};val;{sae_file};{resize_str};{dropout_value};{val_dropout};{times_pass_model};{type_combination.value};{votes_threshold};{best_bin_threshold};{total_gt_boxes};{bin_F1score_map[best_bin_threshold]};{bin_IoUscore_map[best_bin_threshold]};{bin_precision_map[best_bin_threshold]};{bin_recall_map[best_bin_threshold]};{tp_per_th[best_bin_threshold]};{fp_per_th[best_bin_threshold]};{fn_per_th[best_bin_threshold]};{tp_norm};{fp_norm};{fn_norm}'    
+    logs = "Source;Target;Partition;model;Resize;dropoutTrain;dropoutVal;Repetitions;Combination;VoteTH;BinTH;TotalGTBoxes;F1;IoU;Prec;Recall;TP;FP;FN;TP-norm;FP-norm;FN-norm;\n"
+    logs += f'{dataset_name};{dataset_name};val;{sae_file};{resize_str};{dropout_value};{val_dropout};{times_pass_model};{type_combination.value};{votes_threshold};{best_bin_threshold};{total_gt_boxes};{bin_F1score_map[best_bin_threshold]};{bin_IoUscore_map[best_bin_threshold]};{bin_precision_map[best_bin_threshold]};{bin_recall_map[best_bin_threshold]};{tp_per_th[best_bin_threshold]};{fp_per_th[best_bin_threshold]};{fn_per_th[best_bin_threshold]};{tp_norm};{fp_norm};{fn_norm}'    
     
     if save_val_imgs:
         images_data_loader_eval = DataHelper.generateValDatasetLoaderForTest (

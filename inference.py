@@ -68,7 +68,7 @@ def TFMForward(
 
 
 def TFMTest(
-    dataset_name: str, bin_umbral_for_model:float, dropout_value: float, val_dropout: float,
+    dataset_name_train: str, dataset_name_test: str, bin_umbral_for_model:float, dropout_value: float, val_dropout: float,
     times_pass_model: int, type_combination: utilsParameters.PredictionsCombinationType,
     votes_threshold: float,
     uses_redimension_vertical: float, uses_redimension_horizontal: float,
@@ -81,7 +81,7 @@ def TFMTest(
 
     # Generate path of the saved model
     sae_file = DataHelper.getModelFileName (
-        dataset_name=dataset_name,
+        dataset_name=dataset_name_train,
         dropout_value=dropout_value,
         uses_redimension_vertical=uses_redimension_vertical,
         uses_redimension_horizontal=uses_redimension_horizontal
@@ -104,7 +104,8 @@ def TFMTest(
         val_dropout=val_dropout,
         times_pass_model=times_pass_model,
         type_combination=type_combination,
-        dataset_name=dataset_name,
+        dataset_name_train=dataset_name_train,
+        dataset_name_test=dataset_name_test,
         model_name=sae_file
         )
 
@@ -128,7 +129,7 @@ def TFMTest(
 
     # Create datasets to train and val
     data_loader_test = DataHelper.generateTestDatasetLoader (
-        dataset_name=dataset_name
+        dataset_name=dataset_name_test
         )
 
 
@@ -224,8 +225,8 @@ def TFMTest(
     if uses_redimension_horizontal:
         resize_str += 'H'
         
-    logs = "Dataset;Partition;model;Resize;dropoutTrain;dropoutVal;Repetitions;Combination;VoteTH;BinTH;TotalGTBoxes;F1;IoU;Prec;Recall;TP;FP;FN;TP-norm;FP-norm;FN-norm;\n"
-    logs += f'{dataset_name};test;{sae_file};{resize_str};{dropout_value};{val_dropout};{times_pass_model};{type_combination.value};{votes_threshold};{bin_umbral_for_model};{total_gt_boxes};{bin_F1score_sum};{bin_IoUscore_sum};{bin_precision_sum};{bin_recall_sum};{tp};{fp};{fn};{tp_norm};{fp_norm};{fn_norm}'    
+    logs = "Source;Target;Partition;model;Resize;dropoutTrain;dropoutVal;Repetitions;Combination;VoteTH;BinTH;TotalGTBoxes;F1;IoU;Prec;Recall;TP;FP;FN;TP-norm;FP-norm;FN-norm;\n"
+    logs += f'{dataset_name_train};{dataset_name_test};test;{sae_file};{resize_str};{dropout_value};{val_dropout};{times_pass_model};{type_combination.value};{votes_threshold};{bin_umbral_for_model};{total_gt_boxes};{bin_F1score_sum};{bin_IoUscore_sum};{bin_precision_sum};{bin_recall_sum};{tp};{fp};{fn};{tp_norm};{fp_norm};{fn_norm}'    
     
     
     

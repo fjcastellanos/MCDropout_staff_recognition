@@ -4,6 +4,21 @@ import training
 import inference
 import utilsParameters
 
+import argparse
+
+
+def menu():
+    parser = argparse.ArgumentParser(description='MonteCarlo dropout for staff retrieval')
+    
+    parser.add_argument('-db_train', required=True, choices=utilsParameters.DATASETS, help='Dataset name for training and validation')
+    parser.add_argument('-db_test',  required=True, choices=utilsParameters.DATASETS, help='Dataset name for testing')
+    
+    args = parser.parse_args()
+
+    print('CONFIG:\n -', str(args).replace('Namespace(','').replace(')','').replace(', ', '\n - '))
+
+    return args
+
 
 def saveLogs(logs, filepath):
     with open(filepath, 'w') as myfile:
@@ -153,16 +168,18 @@ def run_DropoutTrainBase():
     saveLogs(logs, "results_run_DropoutTrainBase.txt")
     
     
-def run_DropoutCombination():
+def run_DropoutCombination(config):
     #dropout en test
     logs = ""
     # Models parameters
     save_val_info = False
     save_val_imgs = False
+    save_test_img = True
+    save_test_info = False
 
     uses_redimension_vertical = True
     uses_redimension_horizontal = True
-
+    
     MODELS_TO_TEST = [
         utilsParameters.ForwardParameters(
             utilsParameters.DATASET_CAPITAN,
@@ -178,8 +195,8 @@ def run_DropoutCombination():
             uses_redimension_horizontal=uses_redimension_horizontal,
             uses_redimension_vertical=uses_redimension_vertical,
             train_dropout=0.2,
-            val_dropout=[.1,.2,.3,.4,.5],
-            times_pass_model= [1,2,5,10,25,50,75,100,200,300,400,500,750,1000],
+            val_dropout=[.2,.3,.4,.5],
+            times_pass_model= [25,50,75,100,200,300,400,500,750,1000],
             type_combination=[utilsParameters.PredictionsCombinationType.MEAN, utilsParameters.PredictionsCombinationType.MAX, utilsParameters.PredictionsCombinationType.VOTES]
             ),
         utilsParameters.ForwardParameters(
@@ -195,8 +212,11 @@ def run_DropoutCombination():
     
     votes_threshold_list = [.25, .5, .75]
     bin_th_list = []
+    idx_experiment = 0
 
     for TEST_PARAMETER in MODELS_TO_TEST:
+        if config.db_train is not None and TEST_PARAMETER.dataset_name != config.db_train:
+            continue
         for type_combination in TEST_PARAMETER.type_combination:
             for times_pass_model in TEST_PARAMETER.times_pass_model:
                 for val_dropout_item in TEST_PARAMETER.val_dropout:
@@ -218,6 +238,21 @@ def run_DropoutCombination():
                                 logs = logs_experiment + "\n"
                             else:
                                 logs += logs_experiment.split("\n")[1] + "\n"
+
+                            logs_experiment = inference.TFMTest(dataset_name_train=TEST_PARAMETER.dataset_name,
+                                                                dataset_name_test=config.db_test,
+                                    dropout_value=TEST_PARAMETER.train_dropout,
+                                    val_dropout=val_dropout,
+                                    times_pass_model=times_pass_model,
+                                    type_combination=type_combination,
+                                    uses_redimension_vertical=TEST_PARAMETER.uses_redimension_vertical,
+                                    uses_redimension_horizontal=TEST_PARAMETER.uses_redimension_horizontal,
+                                    save_test_info=save_test_info,
+                                    save_test_img=save_test_img,
+                                    bin_umbral_for_model=bin_th,
+                                    votes_threshold=votes_threshold
+                                    )
+                            logs += logs_experiment.split("\n")[1] + "\n"
                     else:
                         bin_th, logs_experiment = training.TFMValidation(dataset_name=TEST_PARAMETER.dataset_name,
                                     dropout_value=TEST_PARAMETER.train_dropout,
@@ -236,37 +271,10 @@ def run_DropoutCombination():
                             logs = logs_experiment + "\n"
                         else:
                             logs += logs_experiment.split("\n")[1] + "\n"
-
-                
-    idx_experiment = 0
-    save_test_img = True
-
-    for TEST_PARAMETER in MODELS_TO_TEST:
-        for type_combination in TEST_PARAMETER.type_combination:
-            for times_pass_model in TEST_PARAMETER.times_pass_model:
-                for val_dropout_item in TEST_PARAMETER.val_dropout:
-                    if type_combination == utilsParameters.PredictionsCombinationType.VOTES:
-                        for votes_threshold in votes_threshold_list:
-                            
-                            bin_th = bin_th_list[idx_experiment]
-                            logs_experiment = inference.TFMTest(dataset_name=TEST_PARAMETER.dataset_name,
+                        logs_experiment = inference.TFMTest(dataset_name_train=TEST_PARAMETER.dataset_name,
+                                                            dataset_name_test=config.db_test,
                                 dropout_value=TEST_PARAMETER.train_dropout,
-                                val_dropout=val_dropout,
-                                times_pass_model=times_pass_model,
-                                type_combination=type_combination,
-                                uses_redimension_vertical=TEST_PARAMETER.uses_redimension_vertical,
-                                uses_redimension_horizontal=TEST_PARAMETER.uses_redimension_horizontal,
-                                save_test_info=save_test_info,
-                                save_test_img=save_test_img,
-                                bin_umbral_for_model=bin_th,
-                                votes_threshold=votes_threshold
-                                )
-                            
-                    else:
-                        bin_th = bin_th_list[idx_experiment]
-                        logs_experiment = inference.TFMTest(dataset_name=TEST_PARAMETER.dataset_name,
-                                dropout_value=TEST_PARAMETER.train_dropout,
-                                val_dropout=val_dropout,
+                                val_dropout=val_dropout_item,
                                 times_pass_model=times_pass_model,
                                 type_combination=type_combination,
                                 uses_redimension_vertical=TEST_PARAMETER.uses_redimension_vertical,
@@ -276,22 +284,23 @@ def run_DropoutCombination():
                                 bin_umbral_for_model=bin_th,
                                 votes_threshold=0
                                 )
-                    idx_experiment = idx_experiment+1
-                    if logs == "":
-                        logs = logs_experiment + "\n"
-                    else:
                         logs += logs_experiment.split("\n")[1] + "\n"
-                        
+                    print("Experiment " + str(idx_experiment) + " finished")
+                    idx_experiment = idx_experiment+1
+                    saveLogs(logs, "results_run_DropoutCombination.txt")
+
     saveLogs(logs, "results_run_DropoutCombination.txt")
     
         
 if __name__ == '__main__':
     
+    config = menu()
+    print (config)
 
     #run_Base()
     #run_DropoutTrainBase()
     
-    run_DropoutCombination()
+    run_DropoutCombination(config)
 
         
     
