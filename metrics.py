@@ -1,5 +1,26 @@
 import numpy as np
 import utilsParameters
+from mean_average_precision import MetricBuilder
+
+
+def calculate_mAP(detections, annotations):
+    #detections = [[box[0], box[1], box[2], box[3],  0, 1] for box in boxes_prediction]
+    #annotations = [[boxes_gt[idx_box][0], boxes_gt[idx_box][1], boxes_gt[idx_box][2], boxes_gt[idx_box][3], 0, 0, list_idx_pages[idx_box]] for idx_box in range(len(boxes_gt))]
+    
+    metric_fn = MetricBuilder.build_evaluation_metric("map_2d", async_mode=True, num_classes=1)
+
+    # Agrega las detecciones y anotaciones
+    metric_fn.add(np.array(detections), np.array(annotations))
+
+    # Calcula el mAP
+    mAP = metric_fn.value(iou_thresholds=0.5)['mAP']
+    
+    COCO = metric_fn.value(iou_thresholds=np.arange(0.5, 1.0, 0.05), recall_thresholds=np.arange(0., 1.01, 0.01), mpolicy='soft')['mAP']
+    print("mAP:" + str(mAP))
+    print(f"COCO mAP: " + str(COCO))
+    
+    return mAP, COCO
+
 
 """IoU and F1"""
 def calculate_iou(box1, box2):

@@ -10,7 +10,8 @@ import utilsIO
 import ConnectedComponents
 import metrics
 import numpy as np
-
+from mean_average_precision import MetricBuilder
+from sklearn.metrics import f1_score, precision_score, recall_score
 
 
 def TFMTrainModel(dataset_name: str, dropout_value: float,
@@ -276,8 +277,15 @@ def TFMValidation(
     fp_per_th = {}
     fn_per_th = {}
     total_gt_boxes = 0
+    
+    metric_fn = MetricBuilder.build_evaluation_metric("map_2d", async_mode=True, num_classes=1)
+    dict_f1_individual_pages_per_threshold = {}
+    list_results = []
+    list_img_GTs = []
     with torch.no_grad():
         # Iterate over each example of the eval dataset
+        
+        idx_page = 0
         for iteration, batch in enumerate(data_loader_eval):
             if utilsParameters.DEBUG_FLAG:
                 print(f'Eval with batch {iteration}/{len(data_loader_eval)}')
@@ -287,13 +295,24 @@ def TFMValidation(
             targetBoxes = target.squeeze().numpy().tolist()
             total_gt_boxes += len(targetBoxes) 
             
+            img_GT = np.zeros((image.shape))
+            vResize = utilsParameters.BBOX_REDIMENSION if uses_redimension_vertical   else 1
+            hResize = utilsParameters.BBOX_REDIMENSION if uses_redimension_horizontal else 1
+            bboxes_GT_resized = [DataLoaderOwn.resize_box(box, vResize=vResize, hResize=hResize) for box in targetBoxes]
+            for bbox_GT in bboxes_GT_resized:
+                img_GT[0,0,int(bbox_GT[1]):int(bbox_GT[3]),int(bbox_GT[0]):int(bbox_GT[2])] = 1
+            
+            list_img_GTs.append(img_GT)
+            
+            
             # Forward pass
             result = DataHelper.forwardToModel(model=model,
                                     image=image,
                                     times_pass_model=times_pass_model,
                                     type_combination=type_combination
                                     )
-
+            list_results.append(result)
+            
             # Creates a dictionary with the bin thresholds and F1 score for each
             for bin_umbral in utilsParameters.BIN_UMBRALS:
                 if utilsParameters.DEBUG_FLAG:
@@ -308,7 +327,7 @@ def TFMValidation(
                     fn_per_th[bin_umbral] = 0
                 
                 # Extract BB from prediction
-                boxes = ConnectedComponents.getConnectedComponents(result,
+                boxes, scores = ConnectedComponents.getConnectedComponents(result,
                                                bin_threshold_percentaje=bin_umbral,
                                                type_combination=type_combination,
                                                votes_threshold=votes_threshold
@@ -320,8 +339,29 @@ def TFMValidation(
 
                 # Calculate F1 and IoU
                 f1, matched_ious_img, true_positives, false_positives, false_negatives = metrics.calculate_F1(y_true = targetBoxes, y_pred = boxes, iou_threshold=0.5)
+                
+                if bin_umbral not in dict_f1_individual_pages_per_threshold:
+                    dict_f1_individual_pages_per_threshold[bin_umbral] = []
+                        
+                dict_f1_individual_pages_per_threshold[bin_umbral].append((f1, matched_ious_img))
+                
                 for iou_bbox in matched_ious_img:
                     matched_ious_per_th[bin_umbral].append(iou_bbox)
+
+                idx_box_in_page = 0           
+                detections = []     
+                annotations = []
+                for box in boxes:
+                    score = scores[idx_box_in_page]
+                    idx_box_in_page+=1
+                    detections.append([box[0],box[1],box[2],box[3], 0, score])
+                for box in targetBoxes:
+                    # [xmin, ymin, xmax, ymax, class_id, difficult, crowd]
+                    annotations.append([box[0],box[1],box[2],box[3], 0, 0, 0])
+                
+                metric_fn.add(np.array(detections), np.array(annotations))
+                
+                idx_page+=1
                 
                 
                 tp_per_th[bin_umbral] += true_positives
@@ -339,17 +379,114 @@ def TFMValidation(
     for bin_umbral in utilsParameters.BIN_UMBRALS:
         bin_F1score_map[bin_umbral], bin_precision_map[bin_umbral], bin_recall_map[bin_umbral]  = metrics.getF1_from_TP_FP_FN(tp_per_th[bin_umbral], fp_per_th[bin_umbral], fn_per_th[bin_umbral])
         bin_IoUscore_map[bin_umbral] = np.mean(matched_ious_per_th[bin_umbral]) if len(matched_ious_per_th[bin_umbral]) > 0 else 0
-
-
+        
+    print ("F1 and IoU for each binarization threshold")
+    for bin_umbral in utilsParameters.BIN_UMBRALS:
+        print(str(bin_umbral) + ";" + str(bin_F1score_map[bin_umbral]) + ";" + str(bin_IoUscore_map[bin_umbral]))
+    
     # Calculate mean of each bin theshold and decide max
     best_bin_threshold = max(bin_F1score_map, key=bin_F1score_map.get)
 
+    idx_img = 0
+    list_F1_pixelwise_mean = []
+    list_prec_pixelwise_mean = []
+    list_recall_pixelwise_mean = []
+    list_IoU_pixelwise_mean = []
+    
+    list_F1_pixelwise_std = []
+    list_prec_pixelwise_std = []
+    list_recall_pixelwise_std = []
+    list_IoU_pixelwise_std = []
+    
+    
+    idx_img_doc = 1
+    for list_results_doc in list_results:
+        print(f'\nEvaluating image {idx_img_doc}')
+        idx_img_doc+=1
+        img_GT = list_img_GTs[idx_img]
+        
+        dictF1_Prec_Recall = evaluate_images(list_results_doc, img_GT, best_bin_threshold)
+        f1_mean = np.mean(dictF1_Prec_Recall["f1"])
+        f1_std = np.std(dictF1_Prec_Recall["f1"])
+        
+        prec_mean = np.mean(dictF1_Prec_Recall["precision"])
+        prec_std = np.std(dictF1_Prec_Recall["precision"])
+        
+        recall_mean = np.mean(dictF1_Prec_Recall["recall"])
+        recall_std = np.std(dictF1_Prec_Recall["recall"])
+        
+        IoU_mean = np.mean(dictF1_Prec_Recall["IoU"])
+        IoU_std = np.std(dictF1_Prec_Recall["IoU"])
+        
+        list_F1_pixelwise_mean.append(f1_mean)
+        list_F1_pixelwise_std.append(f1_std)
+        list_prec_pixelwise_mean.append(prec_mean)
+        list_prec_pixelwise_std.append(prec_std)
+        list_recall_pixelwise_mean.append(recall_mean)
+        list_recall_pixelwise_std.append(recall_std)
+        list_IoU_pixelwise_mean.append(IoU_mean)
+        list_IoU_pixelwise_std.append(IoU_std)
+        
+        idx_img += 1
+        
+    
+    
+        
+    F1s_avg_indiv_alldocs = [item [0] for item in dict_f1_individual_pages_per_threshold[best_bin_threshold]]
+    F1_avg_indiv = np.mean(F1s_avg_indiv_alldocs) if len(F1s_avg_indiv_alldocs) >0 else 0.
+    F1_variance_indiv = np.std(F1s_avg_indiv_alldocs) if len(F1s_avg_indiv_alldocs) > 0 else 0.
+    
+    IoUs_avg_indiv_alldocs = [np.mean(item [1]) for item in dict_f1_individual_pages_per_threshold[best_bin_threshold]]
+    IoU_avg_indiv = np.mean(IoUs_avg_indiv_alldocs) if len(IoUs_avg_indiv_alldocs) >0 else 0.
+    IoU_variance_indiv = np.std(IoUs_avg_indiv_alldocs) if len(IoUs_avg_indiv_alldocs) > 0 else 0.
+    
+    
+    str_std_per_predictions = ""
+    str_confidence_per_predictions = ""
+    str_F1_pixel = ""
+    str_prec_pixel = ""
+    str_recall_pixel = ""
+    str_IoU_pixel = ""
+
+    
+    if times_pass_model == 500:
+        for num_predictions in [2,5,25,75,250,500]:
+            confidence_matrix = np.mean(list_results[0:num_predictions], axis=0)
+            std_matrix = np.std(list_results[0:num_predictions], axis=0)
+            std_pixel_value = np.mean(std_matrix)
+            confidence_value = np.mean(confidence_matrix)
+            str_std_per_predictions += str(std_pixel_value) + ";"
+            str_confidence_per_predictions += str(confidence_value) + ";"
+            
+            F1_pixel_mean = np.mean(list_F1_pixelwise_mean[0:num_predictions])
+            F1_pixel_std = np.mean(list_F1_pixelwise_std[0:num_predictions])
+            prec_pixel_mean = np.mean(list_prec_pixelwise_mean[0:num_predictions])
+            prec_pixel_std = np.mean(list_prec_pixelwise_std[0:num_predictions])
+            recall_pixel_mean = np.mean(list_recall_pixelwise_mean[0:num_predictions])
+            recall_pixel_std = np.mean(list_recall_pixelwise_std[0:num_predictions])
+            IoU_pixel_mean = np.mean(list_IoU_pixelwise_mean[0:num_predictions])
+            IoU_pixel_std = np.mean(list_IoU_pixelwise_std[0:num_predictions])
+            
+            str_F1_pixel += str(F1_pixel_mean)+";" + str(F1_pixel_std) + ";"
+            str_prec_pixel += str(prec_pixel_mean)+";" + str(prec_pixel_std) + ";"
+            str_recall_pixel += str(recall_pixel_mean)+";" + str(recall_pixel_std) + ";"
+            str_IoU_pixel += str(IoU_pixel_mean)+";" + str(IoU_pixel_std) + ";"
+    
+    print ("Dataset;DropoutInference;STD@2;STD@5;STD@25;STD@75;STD@250;STD@500;CONF@2;CONF@5;CONF@25;CONF@75;CONF@250;CONF@500;F1-reg-page;F1-std-reg-page;IoU-reg-page;IoU-std-reg-page;F1-px-mean@2;F1-px-std@2;F1-px-mean@5;F1-px-std@5;F1-px-mean@25;F1-px-std@25;F1-px-mean@75;F1-px-std@75;F1-px-mean@250;F1-px-std@250;F1-px-mean@500;F1-px-std@500;Prec-px-mean@2;Prec-px-std@2;Prec-px-mean@5;Prec-px-std@5;Prec-px-mean@25;Prec-px-std@25;Prec-px-mean@75;Prec-px-std@75;Prec-px-mean@250;Prec-px-std@250;Prec-px-mean@500;Prec-px-std@500;Recall-px-mean@2;Recall-px-std@2;Recall-px-mean@5;Recall-px-std@5;Recall-px-mean@25;Recall-px-std@25;Recall-px-mean@75;Recall-px-std@75;Recall-px-mean@250;Recall-px-std@250;Recall-px-mean@500;Recall-px-std@500;IoU-px-mean@2;IoU-px-std@2;IoU-px-mean@5;IoU-px-std@5;IoU-px-mean@25;IoU-px-std@25;IoU-px-mean@75;IoU-px-std@75;IoU-px-mean@250;IoU-px-std@250;IoU-px-mean@500;IoU-px-std@500")
+    print (f'{dataset_name};{val_dropout};{str_std_per_predictions}{str_confidence_per_predictions}{F1_avg_indiv};{F1_variance_indiv};{IoU_avg_indiv};{IoU_variance_indiv};{str_F1_pixel};{str_prec_pixel};{str_recall_pixel};{str_IoU_pixel}')
     # Check for dupes in best F1 score
     common_keys = []
     for key, value in bin_F1score_map.items():
         if value == bin_F1score_map[best_bin_threshold]:
             common_keys.append(key)
 
+
+    mAP = metric_fn.value(iou_thresholds=0.5)['mAP']
+    COCO = metric_fn.value(iou_thresholds=np.arange(0.5, 1.0, 0.05), recall_thresholds=np.arange(0., 1.01, 0.01), mpolicy='soft')['mAP']
+    print("mAP:" + str(mAP))
+    print(f"COCO mAP: " + str(COCO))
+    
+    
     # If there's dupes, select the one with most IoU
     if len(common_keys) > 1:
         for k in common_keys:
@@ -370,8 +507,10 @@ def TFMValidation(
     if uses_redimension_horizontal:
         resize_str += 'H'
         
-    logs = "Source;Target;Partition;model;Resize;dropoutTrain;dropoutVal;Repetitions;Combination;VoteTH;BinTH;TotalGTBoxes;F1;IoU;Prec;Recall;TP;FP;FN;TP-norm;FP-norm;FN-norm;\n"
-    logs += f'{dataset_name};{dataset_name};val;{sae_file};{resize_str};{dropout_value};{val_dropout};{times_pass_model};{type_combination.value};{votes_threshold};{best_bin_threshold};{total_gt_boxes};{bin_F1score_map[best_bin_threshold]};{bin_IoUscore_map[best_bin_threshold]};{bin_precision_map[best_bin_threshold]};{bin_recall_map[best_bin_threshold]};{tp_per_th[best_bin_threshold]};{fp_per_th[best_bin_threshold]};{fn_per_th[best_bin_threshold]};{tp_norm};{fp_norm};{fn_norm}'    
+    
+    
+    logs = "Source;Target;Partition;model;Resize;dropoutTrain;dropoutVal;Repetitions;Combination;VoteTH;BinTH;TotalGTBoxes;F1;IoU;Prec;Recall;TP;FP;FN;TP-norm;FP-norm;FN-norm;mAP;COCO;F1_avg_indiv;F1_variance\n"
+    logs += f'{dataset_name};{dataset_name};val;{sae_file};{resize_str};{dropout_value};{val_dropout};{times_pass_model};{type_combination.value};{votes_threshold};{best_bin_threshold};{total_gt_boxes};{bin_F1score_map[best_bin_threshold]};{bin_IoUscore_map[best_bin_threshold]};{bin_precision_map[best_bin_threshold]};{bin_recall_map[best_bin_threshold]};{tp_per_th[best_bin_threshold]};{fp_per_th[best_bin_threshold]};{fn_per_th[best_bin_threshold]};{tp_norm};{fp_norm};{fn_norm};{mAP};{COCO};{F1_avg_indiv};{F1_variance_indiv}'    
     
     if save_val_imgs:
         images_data_loader_eval = DataHelper.generateValDatasetLoaderForTest (
@@ -423,3 +562,52 @@ def TFMValidation(
             f.write(stringIoUList)
 
     return best_bin_threshold, logs
+
+
+def calculate_iou_pixelwise(pred_mask, gt_mask):
+    # Asegurarse de que ambas máscaras tengan el mismo tamaño
+    assert pred_mask.shape == gt_mask.shape, "Las máscaras deben tener el mismo tamaño"
+    
+    # Calcular la intersección y la unión
+    intersection = np.logical_and(pred_mask, gt_mask).sum()
+    union = np.logical_or(pred_mask, gt_mask).sum()
+    
+    # Calcular IoU
+    iou = intersection / union if union != 0 else 0
+    return iou.item()
+
+def evaluate_images(pred_images, gt, bin_threshold):
+    f1_scores = []
+    precisions = []
+    recalls = []
+    IoU_scores = []
+    gt_int = gt>0.5*1
+    gt_flat = gt_int.flatten()
+    idx_page = 1
+    print("")
+    for pred in pred_images:
+        print(f'\r\tEvaluating prediction {idx_page}', end='')
+        pred_np = pred.numpy()
+        idx_page+=1
+        pred_flat = (pred_np.flatten() > bin_threshold)*1
+        
+        # Calcular precisión, recall y F1-score para cada par de imágenes
+        precision = precision_score(gt_flat, pred_flat, average='binary', zero_division=0)
+        recall = recall_score(gt_flat, pred_flat, average='binary', zero_division=0)
+        f1 = f1_score(gt_flat, pred_flat, average='binary', zero_division=0)
+        IoU = calculate_iou_pixelwise(pred_flat, gt_flat)
+        
+        # Guardar los resultados
+        precisions.append(precision)
+        recalls.append(recall)
+        f1_scores.append(f1)
+        IoU_scores.append(IoU)
+        
+    return {
+        "precision": precisions,
+        "recall": recalls,
+        "f1": f1_scores,
+        "IoU": IoU_scores
+    }
+    
+    

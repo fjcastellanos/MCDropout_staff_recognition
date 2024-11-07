@@ -1,0 +1,68 @@
+./sh_inference.sh: línea 11: logs/train_Capitan/test_Capitan.txt: No existe el archivo o el directorio
+./sh_inference.sh: línea 11: logs/train_Capitan/test_Capitan.txt: No existe el archivo o el directorio
+./sh_inference.sh: línea 11: logs/train_Capitan/test_Capitan.txt: No existe el archivo o el directorio
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_Capitan»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_Capitan»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_Capitan»: El archivo ya existe
+./sh_inference.sh: línea 4: [Capitan,SEILS,FMT_C]: orden no encontrada
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+./sh_inference.sh: línea 13: logs/train_FMT_C/test.txt: No existe el archivo o el directorio
+./sh_inference.sh: línea 4: [Capitan,SEILS,FMT_C]: orden no encontrada
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+./sh_inference.sh: línea 22: error sintáctico: no se esperaba el final del archivo
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_Capitan»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_SEILS»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_FMT_C»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_Capitan»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_SEILS»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_FMT_C»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_Capitan»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_SEILS»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_FMT_C»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_Capitan»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_SEILS»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_FMT_C»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_Capitan»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_SEILS»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_FMT_C»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_Capitan»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_SEILS»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_FMT_C»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_Capitan»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_SEILS»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_FMT_C»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_Capitan»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_SEILS»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_FMT_C»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_Capitan»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_SEILS»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_FMT_C»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_Capitan»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_SEILS»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs/train_FMT_C»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+mkdir: no se puede crear el directorio «logs»: El archivo ya existe
+./sh_inference.sh: línea 9: 1100682 Terminado (killed)      python -u maintest.py -db_train ${db_train} -db_test Capitan SEILS FMT_C &> ${output_file}

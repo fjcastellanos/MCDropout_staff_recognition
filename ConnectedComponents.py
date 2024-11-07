@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import utilsParameters
+import torch
 
 def binarizarTensor(tensor_image, bin_threshold_percentaje = 0.5):
      # convertir el tensor a true/false si superan o no el umbral
@@ -12,7 +13,7 @@ def getConnectedComponents(tensor_image, bin_threshold_percentaje, min_area = 10
     Input:
       tensor_image: tensor of values [0, 1]
 
-    Return bounding boxes as [x1, y1, x2, y2]
+    Return bounding boxes as [x1, y1, x2, y2] and scores
   """
   # bin_threshold = int(bin_threshold_percentaje * 255)
 
@@ -24,6 +25,8 @@ def getConnectedComponents(tensor_image, bin_threshold_percentaje, min_area = 10
   # binary_image2 = (gray_image > bin_threshold).astype(np.uint8) * 255
 
   # convertir el tensor a true/false si superan o no el umbral
+  
+  scores = []
   if type_combination == utilsParameters.PredictionsCombinationType.VOTES:
     pixels_with_higher_umbral = [tensor_img.numpy().squeeze() > bin_threshold_percentaje for tensor_img in tensor_image]
     binary_images = np.array(pixels_with_higher_umbral)
@@ -68,9 +71,17 @@ def getConnectedComponents(tensor_image, bin_threshold_percentaje, min_area = 10
       area = cv2.contourArea(c)
       if area > min_area:
         (x, y, w, h) = cv2.boundingRect(c)
+        if type(tensor_image) is list:
+            score_list_predictions = [torch.mean(tensor_image_prediction[:,:, x:x+w, y:y+h][tensor_image_prediction[:,:, x:x+w, y:y+h] > 0]) for tensor_image_prediction in tensor_image]
+            score = np.mean (score_list_predictions)
+        else:
+            bbox_region = tensor_image[:,:, x:x+w, y:y+h]
+            score = torch.mean(bbox_region[bbox_region > 0])
+        scores.append(score)
         bboxes.append([x, y, x+w, y+h])
         detected_boxes += 1
 
+  
   # drawBoxesPredictedAndGroundTruth(torch.from_numpy(closing), bboxes, targetBoxes, is_normalized = True)
 
-  return bboxes
+  return bboxes, scores

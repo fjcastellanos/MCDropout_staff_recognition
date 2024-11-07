@@ -12,6 +12,7 @@ import gc
 from PIL import  Image as PILImage
 import torchvision.transforms as T
 import numpy as np
+from mean_average_precision import MetricBuilder
 
 
 def getPredictionModel(dataset_name):
@@ -143,7 +144,8 @@ def TFMTest(
     fp = 0
     fn = 0
     total_gt_boxes = 0
-    
+    metric_fn = MetricBuilder.build_evaluation_metric("map_2d", async_mode=True, num_classes=1)
+    list_f1_individual_pages = []
     with torch.no_grad():
         # Iterate over each example of the eval dataset
         for iteration, batch in enumerate(data_loader_test):
@@ -167,7 +169,7 @@ def TFMTest(
                 print(f'\r\tTesting with {bin_umbral_for_model} binarization umbral', end='')
 
             # Extract BB from prediction
-            boxes = ConnectedComponents.getConnectedComponents(result,
+            boxes, scores = ConnectedComponents.getConnectedComponents(result,
                                            bin_threshold_percentaje=bin_umbral_for_model,
                                            type_combination=type_combination,
                                            votes_threshold=votes_threshold
@@ -179,14 +181,29 @@ def TFMTest(
 
             # Calculate F1 and IoU
             f1, matched_ious_img, true_positives, false_positives, false_negatives = metrics.calculate_F1(y_true=targetBoxes, y_pred=boxes, iou_threshold=0.5)
+            
+            list_f1_individual_pages.append(f1)
             for iou_bbox in matched_ious_img:
                 matched_ious.append(iou_bbox)
-                    
+            
             tp += true_positives
             fp += false_positives
             fn += false_negatives
             
+            idx_box_in_page = 0           
+            detections = []     
+            annotations = []
+            for box in boxes:
+                score = scores[idx_box_in_page]
+                idx_box_in_page+=1
+                detections.append([box[0],box[1],box[2],box[3], 0, score])
+            for box in targetBoxes:
+                # [xmin, ymin, xmax, ymax, class_id, difficult, crowd]
+                annotations.append([box[0],box[1],box[2],box[3], 0, 0, 0])
             
+            metric_fn.add(np.array(detections), np.array(annotations))
+                
+                
             if save_test_img:
                 drawing.drawBoxesPredictedAndGroundTruth (
                     tensor_image=image,
@@ -209,7 +226,11 @@ def TFMTest(
     bin_F1score_sum, bin_precision_sum, bin_recall_sum= metrics.getF1_from_TP_FP_FN(tp,fp,fn)
     bin_IoUscore_sum += np.mean(matched_ious) if len(matched_ious) > 0 else 0
 
-
+    mAP = metric_fn.value(iou_thresholds=0.5)['mAP']
+    COCO = metric_fn.value(iou_thresholds=np.arange(0.5, 1.0, 0.05), recall_thresholds=np.arange(0., 1.01, 0.01), mpolicy='soft')['mAP']
+    print("mAP:" + str(mAP))
+    print(f"COCO mAP: " + str(COCO))
+    
 
     tp_norm = tp / total_gt_boxes if total_gt_boxes > 0 else 0.
     fp_norm = fp / (tp + fp) if (tp + fp) > 0 else 0.
@@ -225,8 +246,12 @@ def TFMTest(
     if uses_redimension_horizontal:
         resize_str += 'H'
         
-    logs = "Source;Target;Partition;model;Resize;dropoutTrain;dropoutVal;Repetitions;Combination;VoteTH;BinTH;TotalGTBoxes;F1;IoU;Prec;Recall;TP;FP;FN;TP-norm;FP-norm;FN-norm;\n"
-    logs += f'{dataset_name_train};{dataset_name_test};test;{sae_file};{resize_str};{dropout_value};{val_dropout};{times_pass_model};{type_combination.value};{votes_threshold};{bin_umbral_for_model};{total_gt_boxes};{bin_F1score_sum};{bin_IoUscore_sum};{bin_precision_sum};{bin_recall_sum};{tp};{fp};{fn};{tp_norm};{fp_norm};{fn_norm}'    
+    F1_avg_indiv = np.mean(list_f1_individual_pages) if len(list_f1_individual_pages) >0 else 0.
+    F1_variance_indiv = np.std(list_f1_individual_pages) if len(list_f1_individual_pages) > 0 else 0.
+    
+    
+    logs = "Source;Target;Partition;model;Resize;dropoutTrain;dropoutVal;Repetitions;Combination;VoteTH;BinTH;TotalGTBoxes;F1;IoU;Prec;Recall;TP;FP;FN;TP-norm;FP-norm;FN-norm;mAP;COCO\n"
+    logs += f'{dataset_name_train};{dataset_name_test};test;{sae_file};{resize_str};{dropout_value};{val_dropout};{times_pass_model};{type_combination.value};{votes_threshold};{bin_umbral_for_model};{total_gt_boxes};{bin_F1score_sum};{bin_IoUscore_sum};{bin_precision_sum};{bin_recall_sum};{tp};{fp};{fn};{tp_norm};{fp_norm};{fn_norm};{mAP};{COCO};{F1_avg_indiv};{F1_variance_indiv}'    
     
     
     

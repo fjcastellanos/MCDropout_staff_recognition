@@ -56,7 +56,7 @@ DRIVE_TEST_IMG_FOLDER = f'{DRIVE_IMG_FOLDER}/test'
 
 SAE_IMAGE_SIZE =  (512, 512)
 
-BIN_UMBRALS = [i/100 for i in range(10, 91, 5)]
+BIN_UMBRALS = [i/100 for i in range(5, 96, 5)]
 DROPOUT_VALUES = [0, 0.1, 0.2, 0.3, 0.4, 0.5]
 
 class PredictionsCombinationType(Enum):
@@ -105,4 +105,8 @@ def init():
    np.random.seed(seed_value)
    #tf.random.set_seed(seed_value)
    torch.manual_seed(seed_value)
+   torch.cuda.manual_seed(seed_value)               
+   torch.cuda.manual_seed_all(seed_value)           
+   torch.backends.cudnn.deterministic = True  
+   torch.use_deterministic_algorithms(True)
 

@@ -156,19 +156,27 @@ def generateTestDatasetLoader(dataset_name):
 
 def forwardToModel(model, image, times_pass_model, type_combination):
     if type_combination == utilsParameters.PredictionsCombinationType.MEAN:
-        result = model(image.to(utilsParameters.device))
+        result = None
+        #result = model(image.to(utilsParameters.device))
         for i in range(times_pass_model):
             print(f'\r\tForward passing with mean result {i+1}', end='')
-            result += model(image.to(utilsParameters.device))
+            if result is None:
+                result = model(image.to(utilsParameters.device))
+            else:
+                result += model(image.to(utilsParameters.device))
         result /= times_pass_model
         print()
         return result.cpu()
 
     elif type_combination == utilsParameters.PredictionsCombinationType.MAX:
-        result = model(image.to(utilsParameters.device))
+        result = None
+        #result = model(image.to(utilsParameters.device))
         for i in range(times_pass_model):
             print(f'\r\tForward passing with max result {i+1}', end='')
-            result = torch.max(result, model(image.to(utilsParameters.device)))
+            if result is None:
+                result = model(image.to(utilsParameters.device))
+            else:
+                result = torch.max(result, model(image.to(utilsParameters.device)))
         print()
         return result.cpu()
 

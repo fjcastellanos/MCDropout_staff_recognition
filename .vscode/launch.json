@@ -12,7 +12,7 @@
             "console": "integratedTerminal",
             "args": [
                     "-db_train", "SEILS",
-                    "-db_test", "Capitan"
+                    "-db_test", "Capitan", "SEILS", "FMT_C"
                 ]
         }
     ]
