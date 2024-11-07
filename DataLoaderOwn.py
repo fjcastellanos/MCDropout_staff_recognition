@@ -1,144 +1,125 @@
-
+from typing import List, Tuple, Optional
 import MuretData
 import utilsIO
 import utilsParameters
-from PIL import  ImageDraw
-from PIL import  Image as PILImage
+from PIL import ImageDraw
+from PIL import Image as PILImage
 import torchvision.transforms as T
 
-def load_dataset(imagesPath: list[str], jsonsPath: list[str], reshape = None):
-    """_summary_
+def load_dataset(imagesPath: List[str], jsonsPath: List[str], reshape: Optional[List[int]] = None) -> List[MuretData.ImageExample]:
+    """Load dataset by reading JSON data files and associated images.
 
     Args:
-        imagesPath (list[str]): paths to images
-        jsonsPath (list[str]): paths to JSON data files
-        reshape (list[int], optional): images size reshape if needed. Defaults to None.
+        imagesPath (List[str]): paths to images
+        jsonsPath (List[str]): paths to JSON data files
+        reshape (Optional[List[int]], optional): Reshape dimensions for images if needed. Defaults to None.
 
     Returns:
-        tuple[list[PILImage], list[list[Region]]]: lists of images and regions for each image
+        List[MuretData.ImageExample]: List of ImageExample objects with images and regions.
     """
-
     return [utilsIO.read_json_datafile(iPath, jPath, reshape) for iPath, jPath in zip(imagesPath, jsonsPath)]
 
-def get_file_name(filePath: str):
+def get_file_name(filePath: str) -> str:
     return filePath[filePath.rfind('/')+1:filePath.find('.')]
 
-def draw_back_white_bb_image(height, width, boxes):
-    targetImage = PILImage.new("RGB", (width, height), "#000000")
+def draw_back_white_bb_image(height: int, width: int, boxes: List[List[int]]) -> PILImage:
+    """Create an image with bounding boxes drawn as white on a black background.
 
+    Args:
+        height (int): Height of the image.
+        width (int): Width of the image.
+        boxes (List[List[int]]): List of bounding boxes.
+
+    Returns:
+        PILImage: Image with drawn bounding boxes.
+    """
+    targetImage = PILImage.new("RGB", (width, height), "#000000")
     draw = ImageDraw.Draw(targetImage)
     for box in boxes:
         draw.rectangle([box[0], box[1], box[2]-1, box[3]-1], fill="#FFFFFF")
-
     return targetImage
 
-def draw_boxes_on_image(example: MuretData.ImageExample, saveDirectory: str):
-    """Save image with passes boxes drawn
+def draw_boxes_on_image(example: MuretData.ImageExample, saveDirectory: str) -> None:
+    """Save image with bounding boxes drawn on it.
 
     Args:
-        image (Image): image to save
-        boxes (list[list[int]]): bounding boxes to save
-        imageName (str): image name
-        saveDirectory (str): directory to save
+        example (MuretData.ImageExample): ImageExample containing image and boxes.
+        saveDirectory (str): Directory to save the image.
     """
-    # Read file & normalize image
-    #img, regionsList = read_json_datafile(path_json, path_img, reshape)
     img = example.image
-
-    print(saveDirectory)
-
     utilsIO.makeDirIfNotExist(saveDirectory)
-
     drawingImage = ImageDraw.Draw(img)
-
-    # Save image
-    # for box in example.get_boxes():
-    #     drawingImage.rectangle(box, outline="red", width=3)
     [drawingImage.rectangle(box, outline="red") for box in example.get_boxes()]
-
-    img.save(saveDirectory + example.imageName + '.jpg')
+    img.save(f"{saveDirectory}/{example.imageName}.jpg")
 
 def get_transform():
     t = [
         T.ToTensor(),
         T.Grayscale(),
-        ]
-
+    ]
     return T.Compose(t)
 
+def resize_box(box: List[int], vResize: float, hResize: float) -> List[float]:
+    """Resize bounding box with given vertical and horizontal resizing factors.
 
-def resize_box(box, vResize, hResize):
+    Args:
+        box (List[int]): Bounding box coordinates as [x1, y1, x2, y2].
+        vResize (float): Vertical resizing factor.
+        hResize (float): Horizontal resizing factor.
+
+    Returns:
+        List[float]: Resized bounding box.
     """
-      Boxes as [x1, y1, x2, y2]
-    """
-    if(len(box)) < 4:
-      print(box)
-    # Get dimensions
+    if len(box) < 4:
+        print(box)
     x1, y1, x2, y2 = box[0], box[1], box[2], box[3]
-    w = x2 - x1 # 100
-    h = y2 - y1 # 100
-
-    # Calculate resized dimensions
-    w2 = w * hResize # 80
-    h2 = h * vResize # 80
-
-    # Get size difference
-    wDif = w2 - w  # 100 - 80 = 20
-    hDif = h2 - h  # 100 - 80 = 20
-
-    # Get how much each coordinate must move
-    xMov = wDif / 2
-    yMov = hDif / 2
-
-    # Get new coordinates
-    x1 = x1 - xMov
-    x2 = x2 + xMov
-
-    y1 = y1 - yMov
-    y2 = y2 + yMov
-
-    return [x1, y1, x2, y2]
+    w, h = x2 - x1, y2 - y1
+    w2, h2 = w * hResize, h * vResize
+    wDif, hDif = w2 - w, h2 - h
+    xMov, yMov = wDif / 2, hDif / 2
+    return [x1 - xMov, y1 - yMov, x2 + xMov, y2 + yMov]
 
 class DatasetLoader:
-    def __init__(self, dataset_name: str, reshape:list[float] = None) -> None:
-        """Create class that loads the dataset
+    def __init__(self, dataset_name: str, reshape: Optional[List[float]] = None) -> None:
+        """Initialize dataset loader.
 
         Args:
-            dataset_name (str): forder path to dataset containing train, test and val's txt files without final / (Ex.: "datasets/Captitan")
-            reshape: reshape of the images
+            dataset_name (str): Folder path to dataset.
+            reshape (Optional[List[float]]): Image reshape dimensions.
         """
         self.datasetFolder = f'{utilsParameters.DRIVE_DATASETS_FOLDER}/{dataset_name}'
         self.reshape = reshape
 
-    def loadTrainPaths(self):
+    def loadTrainPaths(self) -> Tuple[List[str], List[str]]:
         return utilsIO.read_paths_dataset_files(f'{self.datasetFolder}/train.txt')
 
-    def loadTestPaths(self):
+    def loadTestPaths(self) -> Tuple[List[str], List[str]]:
         return utilsIO.read_paths_dataset_files(f'{self.datasetFolder}/test.txt')
 
-    def loadValPaths(self):
+    def loadValPaths(self) -> Tuple[List[str], List[str]]:
         return utilsIO.read_paths_dataset_files(f'{self.datasetFolder}/val.txt')
 
-    def loadTrainDataset(self):
+    def loadTrainDataset(self) -> List[MuretData.ImageExample]:
         trainJSonPaths, trainImagesPath = self.loadTrainPaths()
         return [utilsIO.read_json_datafile(json, img, self.reshape) for json, img in zip(trainJSonPaths, trainImagesPath)]
 
-    def loadValDataset(self):
+    def loadValDataset(self) -> List[MuretData.ImageExample]:
         valJSonPaths, valImagesPath = self.loadValPaths()
         return [utilsIO.read_json_datafile(json, img, self.reshape) for json, img in zip(valJSonPaths, valImagesPath)]
 
-    def loadTestDataset(self):
+    def loadTestDataset(self) -> List[MuretData.ImageExample]:
         testJSonPaths, testImagesPath = self.loadTestPaths()
         return [utilsIO.read_json_datafile(json, img, self.reshape) for json, img in zip(testJSonPaths, testImagesPath)]
 
-    def loadAllDatasetPaths(self):
+    def loadAllDatasetPaths(self) -> Tuple[Tuple[List[str], List[str]], Tuple[List[str], List[str]], Tuple[List[str], List[str]]]:
         return self.loadTrainPaths(), self.loadValPaths(), self.loadTestPaths()
 
-    def loadAllDataset(self):
+    def loadAllDataset(self) -> Tuple[List[MuretData.ImageExample], List[MuretData.ImageExample], List[MuretData.ImageExample]]:
         return self.loadTrainDataset(), self.loadValDataset(), self.loadTestDataset()
 
-    def drawBoxesInDataset(self):
+    def drawBoxesInDataset(self) -> None:
         train, val, test = self.loadAllDataset()
-        [draw_boxes_on_image(example=example, saveDirectory=self.datasetFolder+"/train/") for example in train]
-        [draw_boxes_on_image(example=example, saveDirectory=self.datasetFolder+"/val/") for example in val]
-        [draw_boxes_on_image(example=example, saveDirectory=self.datasetFolder+"/test/") for example in test]
+        [draw_boxes_on_image(example=example, saveDirectory=f"{self.datasetFolder}/train/") for example in train]
+        [draw_boxes_on_image(example=example, saveDirectory=f"{self.datasetFolder}/val/") for example in val]
+        [draw_boxes_on_image(example=example, saveDirectory=f"{self.datasetFolder}/test/") for example in test]
+

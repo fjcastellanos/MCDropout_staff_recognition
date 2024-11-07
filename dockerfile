@@ -7,6 +7,8 @@ RUN apt install nano
 RUN pip install --upgrade pip
 RUN pip install opencv-python
 RUN pip install torch
+RUN pip install torchvision
+RUN pip install mean_average_precision
 RUN pip install progressbar
 RUN pip install scikit-learn
 RUN pip install tqdm

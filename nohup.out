@@ -66,3 +66,8 @@ mkdir: no se puede crear el directorio «logs»: El archivo ya existe
 mkdir: no se puede crear el directorio «logs»: El archivo ya existe
 mkdir: no se puede crear el directorio «logs»: El archivo ya existe
 ./sh_inference.sh: línea 9: 1100682 Terminado (killed)      python -u maintest.py -db_train ${db_train} -db_test Capitan SEILS FMT_C &> ${output_file}
+./sh_inference.sh: line 12: logs/train_SEILS/test.txt: No such file or directory
+mkdir: cannot create directory ‘logs’: File exists
+mkdir: cannot create directory ‘logs/train_SEILS’: File exists
+mkdir: cannot create directory ‘logs’: File exists
+mkdir: cannot create directory ‘logs/train_SEILS’: File exists
