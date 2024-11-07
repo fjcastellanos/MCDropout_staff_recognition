@@ -441,22 +441,39 @@ def TFMValidation(
     IoU_variance_indiv = np.std(IoUs_avg_indiv_alldocs) if len(IoUs_avg_indiv_alldocs) > 0 else 0.
     
     
-    str_std_per_predictions = ""
-    str_confidence_per_predictions = ""
     str_F1_pixel = ""
     str_prec_pixel = ""
     str_recall_pixel = ""
     str_IoU_pixel = ""
 
+    dict_confidence_mean_per_image = {}
+    dict_confidence_std_per_image = {}
     
-    if times_pass_model == 500:
-        for num_predictions in [2,5,25,75,250,500]:
-            confidence_matrix = np.mean(list_results[0:num_predictions], axis=0)
-            std_matrix = np.std(list_results[0:num_predictions], axis=0)
+    for num_predictions in [2,5,25,75,250,500]:
+        
+        for results_image in list_results: #iteration of all images
+            
+            confidence_matrix = np.mean(results_image[0:num_predictions], axis=0)
+            std_matrix = np.std(results_image[0:num_predictions], axis=0)
+            
             std_pixel_value = np.mean(std_matrix)
             confidence_value = np.mean(confidence_matrix)
-            str_std_per_predictions += str(std_pixel_value) + ";"
-            str_confidence_per_predictions += str(confidence_value) + ";"
+            
+            if num_predictions not in dict_confidence_mean_per_image:
+                dict_confidence_mean_per_image[num_predictions] = []
+                dict_confidence_std_per_image[num_predictions] = []
+            dict_confidence_mean_per_image[num_predictions].append(confidence_value)
+            dict_confidence_std_per_image[num_predictions].append(std_pixel_value)
+        
+    str_confidence_per_predictions = ""
+    str_std_per_predictions = ""
+    for num_predictions in [2,5,25,75,250,500]:
+
+            confidence_value_mean_all = np.mean(dict_confidence_mean_per_image[num_predictions])
+            confidence_value_std_all = np.mean(dict_confidence_std_per_image[num_predictions])
+            str_confidence_per_predictions += str(confidence_value_mean_all) + ";"
+            str_std_per_predictions += str(confidence_value_std_all) + ";"
+            
             
             F1_pixel_mean = np.mean(list_F1_pixelwise_mean[0:num_predictions])
             F1_pixel_std = np.mean(list_F1_pixelwise_std[0:num_predictions])
