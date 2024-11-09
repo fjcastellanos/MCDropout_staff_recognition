@@ -272,7 +272,14 @@ def TFMTest(
             value = np.count_nonzero(list_predictions_pixel)
             result[r, c] = value
 
+    from matplotlib import pyplot as plt
+    plt.imshow(result, cmap='Reds', vmin=np.amin(result), vmax=np.amax(result))
+    plt.axis('off')  # Opcional: eliminar los ejes
+    plt.savefig('pruebas/100preds_nobin.png', dpi=300, bbox_inches='tight', pad_inches=0)
+    plt.close()
 
+    #import cv2
+    #cv2.imwrite("pruebas/prueba-6.png", list_results_numpy[page][6][0,0,:,:]*255)
 
     # Calculate mean of F1 and IoU scores
     bin_F1score_sum, bin_precision_sum, bin_recall_sum= metrics.getF1_from_TP_FP_FN(tp,fp,fn)
