@@ -146,6 +146,10 @@ def TFMTest(
     total_gt_boxes = 0
     metric_fn = MetricBuilder.build_evaluation_metric("map_2d", async_mode=True, num_classes=1)
     list_f1_individual_pages = []
+    list_img_GTs = []
+    list_images = []
+
+    list_results = []
     with torch.no_grad():
         # Iterate over each example of the eval dataset
         for iteration, batch in enumerate(data_loader_test):
@@ -156,6 +160,16 @@ def TFMTest(
             image, target = batch
             targetBoxes = target.squeeze().numpy().tolist()
             total_gt_boxes += len(targetBoxes) 
+            list_images.append(image)
+
+            img_GT = np.zeros((image.shape))
+            vResize = utilsParameters.BBOX_REDIMENSION if uses_redimension_vertical   else 1
+            hResize = utilsParameters.BBOX_REDIMENSION if uses_redimension_horizontal else 1
+            bboxes_GT_resized = [DataLoaderOwn.resize_box(box, vResize=vResize, hResize=hResize) for box in targetBoxes]
+            for bbox_GT in bboxes_GT_resized:
+                img_GT[0,0,int(bbox_GT[1]):int(bbox_GT[3]),int(bbox_GT[0]):int(bbox_GT[2])] = 1
+            
+            list_img_GTs.append(img_GT)
 
             # Forward pass
             result = DataHelper.forwardToModel(model=model,
@@ -163,7 +177,7 @@ def TFMTest(
                                     times_pass_model=times_pass_model,
                                     type_combination=type_combination
                                     )
-
+            list_results.append(result)
             # Creates a dictionary with the bin thresholds and F1 score for each
             if utilsParameters.DEBUG_FLAG:
                 print(f'\r\tTesting with {bin_umbral_for_model} binarization umbral', end='')
@@ -220,6 +234,44 @@ def TFMTest(
 
             torch.cuda.empty_cache()
             # gc.collect()
+
+
+    list_results_numpy = []
+    for results_image in list_results:
+        emptylist=[]
+        list_results_numpy.append(emptylist)
+        for results_prediction in results_image:
+            list_results_numpy[len(list_results_numpy)-1].append(results_prediction.numpy())
+            
+    
+
+    page = 5
+    num_pred = 2
+    
+    gt = list_img_GTs[page][0,0,:,:]
+    ROWS = list_results_numpy[0][0].shape[2]
+    COLS = list_results_numpy[0][0].shape[3]  
+
+    result = np.zeros((ROWS, COLS))
+    import math
+    print("Dumping results to a matrix...")
+    for r in range(ROWS):
+        print ("Average of the results..." + str(r) + "/" + str(ROWS))
+        
+        for c in range(COLS):
+            list_predictions_pixel = []
+            for prediction in list_results_numpy[page][0:num_pred]:
+                prediction_th = (prediction[0,0,r,c] >=bin_umbral_for_model) *1
+                if gt[r,c] == 1:
+                    value = 1 - prediction_th
+                else:
+                    value = prediction_th
+
+                list_predictions_pixel.append(value)
+            
+            value = np.count_nonzero(list_predictions_pixel)
+            result[r, c] = value
+
 
 
     # Calculate mean of F1 and IoU scores

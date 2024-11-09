@@ -177,7 +177,7 @@ def run_DropoutCombination(config):
     save_test_img = False
     save_test_info = False
     
-    path_results = "results_run_DropoutCombination_" + config.db_train + "_varianza.txt"
+    path_results = "results_run_DropoutCombination_" + config.db_train + "_color_temperature_matrix.txt"
 
     uses_redimension_vertical = True
     uses_redimension_horizontal = True
@@ -189,7 +189,7 @@ def run_DropoutCombination(config):
             uses_redimension_horizontal=uses_redimension_horizontal,
             uses_redimension_vertical=uses_redimension_vertical,
             train_dropout=0.3,
-            val_dropout=[.1,.2,.3,.4,.5],
+            val_dropout=[.3,.4,.5],
             times_pass_model= num_repetitions_experiment,
             type_combination=all_combinations_experiment
             ),
@@ -198,7 +198,7 @@ def run_DropoutCombination(config):
             uses_redimension_horizontal=uses_redimension_horizontal,
             uses_redimension_vertical=uses_redimension_vertical,
             train_dropout=0.2,
-            val_dropout=[.1,.2,.3,.4,.5],
+            val_dropout=[.2],
             times_pass_model= num_repetitions_experiment,
             type_combination=all_combinations_experiment
             ),
@@ -207,13 +207,13 @@ def run_DropoutCombination(config):
             uses_redimension_horizontal=uses_redimension_horizontal,
             uses_redimension_vertical=uses_redimension_vertical,
             train_dropout=0.2,
-            val_dropout=[.1,.2,.3,.4,.5],
+            val_dropout=[.2],
             times_pass_model= num_repetitions_experiment,
             type_combination=all_combinations_experiment
             )
     ]
     
-    votes_threshold_list = [.25, .5, .75, 1.]
+    votes_threshold_list = [.5]
     bin_th_list = []
     idx_experiment = 0
 
@@ -225,6 +225,7 @@ def run_DropoutCombination(config):
                 for val_dropout_item in TEST_PARAMETER.val_dropout:
                     if type_combination == utilsParameters.PredictionsCombinationType.VOTES:
                         for votes_threshold in votes_threshold_list:
+                            '''
                             bin_th, logs_experiment = training.TFMValidation(dataset_name=TEST_PARAMETER.dataset_name,
                                     dropout_value=TEST_PARAMETER.train_dropout,
                                     val_dropout=val_dropout_item,
@@ -236,13 +237,16 @@ def run_DropoutCombination(config):
                                     save_val_info=save_val_info,
                                     save_val_imgs=save_val_imgs
                                 )
+                            '''
+                            bin_th = 0.55 #quitar
+                            logs_experiment = ""#quitar
                             bin_th_list.append(bin_th)
                             if logs == "":
                                 logs = logs_experiment + "\n"
                             else:
                                 logs += logs_experiment.split("\n")[1] + "\n"
                             saveLogs(logs, path_results)
-                            '''
+                            
                             for db_test in config.db_test:
                                 logs_experiment = inference.TFMTest(dataset_name_train=TEST_PARAMETER.dataset_name,
                                                                     dataset_name_test=db_test,
@@ -258,7 +262,6 @@ def run_DropoutCombination(config):
                                         votes_threshold=votes_threshold
                                         )
                                 logs += logs_experiment.split("\n")[1] + "\n"
-                            '''
                     else:
                         bin_th, logs_experiment = training.TFMValidation(dataset_name=TEST_PARAMETER.dataset_name,
                                     dropout_value=TEST_PARAMETER.train_dropout,

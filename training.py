@@ -375,7 +375,7 @@ def TFMValidation(
 
             torch.cuda.empty_cache()
             # gc.collect()
-
+            
     for bin_umbral in utilsParameters.BIN_UMBRALS:
         bin_F1score_map[bin_umbral], bin_precision_map[bin_umbral], bin_recall_map[bin_umbral]  = metrics.getF1_from_TP_FP_FN(tp_per_th[bin_umbral], fp_per_th[bin_umbral], fn_per_th[bin_umbral])
         bin_IoUscore_map[bin_umbral] = np.mean(matched_ious_per_th[bin_umbral]) if len(matched_ious_per_th[bin_umbral]) > 0 else 0
@@ -449,10 +449,18 @@ def TFMValidation(
     dict_confidence_mean_per_image = {}
     dict_confidence_std_per_image = {}
     
-    for num_predictions in [2,5,25,75,250,500]:
-        
-        for results_image in list_results: #iteration of all images
+    list_results_numpy = []
+    for results_image in list_results:
+        emptylist=[]
+        list_results_numpy.append(emptylist)
+        for results_prediction in results_image:
+            list_results_numpy[len(list_results_numpy)-1].append(results_prediction.numpy())
             
+    
+    for num_predictions in [2,5,25,75,250,500]:
+        for results_image in list_results_numpy: #iteration of all images
+            if num_predictions > len(results_image):
+                continue
             confidence_matrix = np.mean(results_image[0:num_predictions], axis=0)
             std_matrix = np.std(results_image[0:num_predictions], axis=0)
             
@@ -468,7 +476,8 @@ def TFMValidation(
     str_confidence_per_predictions = ""
     str_std_per_predictions = ""
     for num_predictions in [2,5,25,75,250,500]:
-
+            if num_predictions > len(results_image):
+                continue
             confidence_value_mean_all = np.mean(dict_confidence_mean_per_image[num_predictions])
             confidence_value_std_all = np.mean(dict_confidence_std_per_image[num_predictions])
             str_confidence_per_predictions += str(confidence_value_mean_all) + ";"
@@ -591,7 +600,9 @@ def calculate_iou_pixelwise(pred_mask, gt_mask):
     
     # Calcular IoU
     iou = intersection / union if union != 0 else 0
-    return iou.item()
+
+    iou_value = iou.item if isinstance(iou, torch.Tensor) else iou
+    return iou_value
 
 def evaluate_images(pred_images, gt, bin_threshold):
     f1_scores = []
