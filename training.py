@@ -282,6 +282,7 @@ def TFMValidation(
     dict_f1_individual_pages_per_threshold = {}
     list_results = []
     list_img_GTs = []
+    list_target_boxes = []
     with torch.no_grad():
         # Iterate over each example of the eval dataset
         
@@ -294,6 +295,8 @@ def TFMValidation(
             image, target = batch
             targetBoxes = target.squeeze().numpy().tolist()
             total_gt_boxes += len(targetBoxes) 
+            
+            list_target_boxes.append(targetBoxes)
             
             img_GT = np.zeros((image.shape))
             vResize = utilsParameters.BBOX_REDIMENSION if uses_redimension_vertical   else 1
@@ -557,11 +560,14 @@ def TFMValidation(
                                                type_combination=type_combination,
                                                votes_threshold=votes_threshold
                                                )
+                
+                '''
                 if uses_redimension_vertical or uses_redimension_horizontal:  # If we're using a resized BB, resize it to original
                     vResize = utilsParameters.BBOX_REDIMENSIONED_RECOVER if uses_redimension_vertical   else 1
                     hResize = utilsParameters.BBOX_REDIMENSIONED_RECOVER if uses_redimension_horizontal else 1
                     boxes = [DataLoaderOwn.resize_box(box, vResize=vResize, hResize=hResize) for box in boxes]
 
+                
                 image_save_path = f'{val_img_folder}/{iteration}.png'
                 print(f'Saving image in {image_save_path}')
                 drawing.drawBoxesPredictedAndGroundTruth (
@@ -573,6 +579,7 @@ def TFMValidation(
                     plot=False,
                     save=save_val_imgs
                     )
+                '''
 
     # Save in a file the F1 and IoU metrics
     if save_val_info:
