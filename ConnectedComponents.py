@@ -35,7 +35,10 @@ def getConnectedComponents(tensor_image, bin_threshold_percentaje, min_area = 10
     pixels_with_higher_umbral = sum_of_votes >= votes_for_score
 
   else:
-    pixels_with_higher_umbral = tensor_image.numpy().squeeze() > bin_threshold_percentaje
+    try:
+      pixels_with_higher_umbral = tensor_image.numpy().squeeze() > bin_threshold_percentaje
+    except:
+      pixels_with_higher_umbral = tensor_image.detach().numpy().squeeze() > bin_threshold_percentaje
 
   # convertir el tensor en uint8 con valores 0 o 255 en negro/blanco
   binary_image = pixels_with_higher_umbral.astype(np.uint8) * 255

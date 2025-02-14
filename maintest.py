@@ -45,6 +45,12 @@ def run_Base(config):
 
     for uses_redimension_vertical, uses_redimension_horizontal in zip(usesRedimensionVerticalList, usesRedimensionHorizontalList):
         for dataset_name in utilsParameters.DATASETS:
+            if dataset_name == utilsParameters.DATASET_CAPITAN:
+                val_dropout = 0.3
+            elif dataset_name == utilsParameters.DATASET_SEILS:
+                val_dropout = 0.2
+            elif dataset_name == utilsParameters.DATASET_FMT_C:
+                val_dropout = 0.2
             for dropout_value in dropout_value_list:
                 bin_th, logs_experiment = training.TFMValidation(dataset_name=dataset_name,
                             dropout_value=dropout_value,
@@ -62,7 +68,7 @@ def run_Base(config):
                 else:
                     logs += logs_experiment.split("\n")[1] + "\n"
 
-
+    saveLogs(logs, "results_run_Base_VAL_DROPOUT.txt")
     
     
     #test
