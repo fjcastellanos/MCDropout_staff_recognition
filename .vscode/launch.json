@@ -12,7 +12,8 @@
             "console": "integratedTerminal",
             "args": [
                     "-db_train", "SEILS",
-                    "-db_test", "Capitan", "SEILS", "FMT_C"
+                    "-db_test", "SEILS",
+                    "-seed", "51"
                 ]
         }
     ]

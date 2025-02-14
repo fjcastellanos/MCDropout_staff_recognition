@@ -73,12 +73,13 @@ def TFMTest(
     times_pass_model: int, type_combination: utilsParameters.PredictionsCombinationType,
     votes_threshold: float,
     uses_redimension_vertical: float, uses_redimension_horizontal: float,
-    save_test_info: bool, save_test_img: bool
+    save_test_info: bool, save_test_img: bool,
+    seed_value: int
     ):
     # Crear cache
     gc.collect()
     torch.cuda.empty_cache()
-    utilsParameters.init()
+    utilsParameters.init(seed_value)
 
     # Generate path of the saved model
     sae_file = DataHelper.getModelFileName (

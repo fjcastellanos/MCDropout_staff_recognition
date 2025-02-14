@@ -93,13 +93,13 @@ class ForwardParameters:
       self.times_pass_model = times_pass_model
       self.type_combination = type_combination
 
-def init():
+def init(seed_value = 145):
    import random
    import numpy as np 
    import torch 
    import os
 
-   seed_value = 145
+   #seed_value = 145
    os.environ['PYTHONHASHSEED'] = str(seed_value)
    random.seed(seed_value)
    np.random.seed(seed_value)
