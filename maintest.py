@@ -193,7 +193,7 @@ def run_DropoutCombination(config):
 
     uses_redimension_vertical = True
     uses_redimension_horizontal = True
-    all_combinations_experiment = [utilsParameters.PredictionsCombinationType.MEAN]
+    all_combinations_experiment = [utilsParameters.PredictionsCombinationType.VOTES]
     num_repetitions_experiment = [75]
     MODELS_TO_TEST = [
         utilsParameters.ForwardParameters(
@@ -204,7 +204,7 @@ def run_DropoutCombination(config):
             val_dropout=[.3], #[.3,.4,.5]
             times_pass_model= num_repetitions_experiment,
             type_combination=all_combinations_experiment,
-            bin_umbral = 0.4
+            bin_umbral = 0.5
             ),
         utilsParameters.ForwardParameters(
             utilsParameters.DATASET_SEILS,
@@ -224,11 +224,11 @@ def run_DropoutCombination(config):
             val_dropout=[.2],
             times_pass_model= num_repetitions_experiment,
             type_combination=all_combinations_experiment,
-            bin_umbral = 0.4
+            bin_umbral = 0.5
             )
     ]
     
-    votes_threshold_list = [1.]
+    votes_threshold_list = [.25, .5, .75, 1.]
     bin_th_list = []
     idx_experiment = 0
 
