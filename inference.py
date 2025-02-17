@@ -248,29 +248,58 @@ def TFMTest(
             
     pass
 
-    print("Saving images with bounding boxes")
-    for page in range(len(list_images)):
-        for num_pred in [1,2,5,25,75,250,500]:
-            for type_comb in utilsParameters.PREDICTIONS_COMBIATION_TYPES:
-                #print(type_comb)
-                image = list_images[page]
-                #page = 17
-                #num_pred=2
-                #type_comb = utilsParameters.PredictionsCombinationType.VOTES
-                res = list_results[page][0:num_pred]
-                targetBoxes=list_target_boxes[page]
-                if type_comb == utilsParameters.PredictionsCombinationType.VOTES:
-                    for votes_th in [0.25, 0.5, 0.75, 1.]:
-                        boxes, scores = ConnectedComponents.getConnectedComponents(res,
+    save_images = False
+    
+    if save_images:
+        print("Saving images with bounding boxes")
+        for page in range(len(list_images)):
+            for num_pred in [1,2,5,25,75,250,500]:
+                #for type_comb in utilsParameters.PREDICTIONS_COMBIATION_TYPES:
+                    #print(type_comb)
+                    type_comb = type_combination
+                    image = list_images[page]
+                    #page = 17
+                    #num_pred=2
+                    #type_comb = utilsParameters.PredictionsCombinationType.VOTES
+                    res = list_results[page][0:num_pred]
+                    targetBoxes=list_target_boxes[page]
+                    if type_comb == utilsParameters.PredictionsCombinationType.VOTES:
+                        for votes_th in [0.25, 0.5, 0.75, 1.]:
+                            boxes, scores = ConnectedComponents.getConnectedComponents(res,
+                                                        bin_threshold_percentaje=bin_umbral_for_model,
+                                                        type_combination=type_comb,
+                                                        votes_threshold=votes_th,
+                                                        morphologyOps=True,
+                                                        )
+                            if uses_redimension_vertical or uses_redimension_horizontal:  # If we're using a resized BB, resize it to original
+                                    vResize = utilsParameters.BBOX_REDIMENSIONED_RECOVER if uses_redimension_vertical   else 1
+                                    hResize = utilsParameters.BBOX_REDIMENSIONED_RECOVER if uses_redimension_horizontal else 1
+                                    boxes = [DataLoaderOwn.resize_box(box, vResize=vResize, hResize=hResize) for box in boxes]
+                            image_save_path = f"pruebas/predboxes_{dataset_name_test}_{page}_{num_pred}preds_{type_comb}_thvote{votes_th}.png"
+                            drawing.drawBoxesPredictedAndGroundTruth (
+                                    tensor_image=image,
+                                    bboxes_predicted=boxes,
+                                    bboxes_groundtruth=targetBoxes,
+                                    is_normalized=False,
+                                    image_name=image_save_path,
+                                    plot=False,
+                                    save=True
+                                    )
+                    else:
+                        if type_comb == utilsParameters.PredictionsCombinationType.MEAN:
+                            res_novote = torch.stack(res).mean(dim=0)
+                        else:
+                            res_novote = torch.stack(res).max(dim=0).values
+                        boxes, scores = ConnectedComponents.getConnectedComponents(res_novote,
                                                     bin_threshold_percentaje=bin_umbral_for_model,
                                                     type_combination=type_comb,
-                                                    votes_threshold=votes_th
+                                                    votes_threshold=votes_threshold
                                                     )
                         if uses_redimension_vertical or uses_redimension_horizontal:  # If we're using a resized BB, resize it to original
                                 vResize = utilsParameters.BBOX_REDIMENSIONED_RECOVER if uses_redimension_vertical   else 1
                                 hResize = utilsParameters.BBOX_REDIMENSIONED_RECOVER if uses_redimension_horizontal else 1
                                 boxes = [DataLoaderOwn.resize_box(box, vResize=vResize, hResize=hResize) for box in boxes]
-                        image_save_path = f"pruebas/predboxes_{dataset_name_test}_{page}_{num_pred}preds_{type_comb}_thvote{votes_th}.png"
+                        image_save_path = f"pruebas/predboxes_{dataset_name_test}_{page}_{num_pred}preds_{type_comb}.png"
                         drawing.drawBoxesPredictedAndGroundTruth (
                                 tensor_image=image,
                                 bboxes_predicted=boxes,
@@ -280,67 +309,43 @@ def TFMTest(
                                 plot=False,
                                 save=True
                                 )
-                else:
-                    if type_comb == utilsParameters.PredictionsCombinationType.MEAN:
-                        res_novote = torch.stack(res).mean(dim=0)
-                    else:
-                        res_novote = torch.stack(res).max(dim=0).values
-                    boxes, scores = ConnectedComponents.getConnectedComponents(res_novote,
-                                                bin_threshold_percentaje=bin_umbral_for_model,
-                                                type_combination=type_comb,
-                                                votes_threshold=votes_threshold
-                                                )
-                    if uses_redimension_vertical or uses_redimension_horizontal:  # If we're using a resized BB, resize it to original
-                            vResize = utilsParameters.BBOX_REDIMENSIONED_RECOVER if uses_redimension_vertical   else 1
-                            hResize = utilsParameters.BBOX_REDIMENSIONED_RECOVER if uses_redimension_horizontal else 1
-                            boxes = [DataLoaderOwn.resize_box(box, vResize=vResize, hResize=hResize) for box in boxes]
-                    image_save_path = f"pruebas/predboxes_{dataset_name_test}_{page}_{num_pred}preds_{type_comb}.png"
-                    drawing.drawBoxesPredictedAndGroundTruth (
-                            tensor_image=image,
-                            bboxes_predicted=boxes,
-                            bboxes_groundtruth=targetBoxes,
-                            is_normalized=False,
-                            image_name=image_save_path,
-                            plot=False,
-                            save=True
-                            )
-                
+                    
 
-    num_pred = 75
-    page = 3
-    
-    gt = list_img_GTs[page][0,0,:,:]
-    ROWS = list_results_numpy[0][0].shape[2]
-    COLS = list_results_numpy[0][0].shape[3]  
-
-    result = np.zeros((ROWS, COLS))
-    import math
-    print("Dumping results to a matrix...")
-    for r in range(ROWS):
-        print ("Average of the results..." + str(r) + "/" + str(ROWS))
+        num_pred = 75
+        page = 3
         
-        for c in range(COLS):
-            list_predictions_pixel = []
-            for prediction in list_results_numpy[page][0:num_pred]:
-                prediction_th = (prediction[0,0,r,c] >=bin_umbral_for_model) *1
-                if gt[r,c] == 1:
-                    value = 1 - prediction_th
-                else:
-                    value = prediction_th
+        gt = list_img_GTs[page][0,0,:,:]
+        ROWS = list_results_numpy[0][0].shape[2]
+        COLS = list_results_numpy[0][0].shape[3]  
 
-                list_predictions_pixel.append(value)
+        result = np.zeros((ROWS, COLS))
+        import math
+        print("Dumping results to a matrix...")
+        for r in range(ROWS):
+            print ("Average of the results..." + str(r) + "/" + str(ROWS))
             
-            value = np.count_nonzero(list_predictions_pixel)
-            result[r, c] = value
+            for c in range(COLS):
+                list_predictions_pixel = []
+                for prediction in list_results_numpy[page][0:num_pred]:
+                    prediction_th = (prediction[0,0,r,c] >=bin_umbral_for_model) *1
+                    if gt[r,c] == 1:
+                        value = 1 - prediction_th
+                    else:
+                        value = prediction_th
 
-    from matplotlib import pyplot as plt
-    plt.imshow(result, cmap='Reds', vmin=np.amin(result), vmax=np.amax(result))
-    plt.axis('off')  # Opcional: eliminar los ejes
-    plt.savefig(f'pruebas/{page}_{num_pred}preds.png', dpi=300, bbox_inches='tight', pad_inches=0)
-    plt.close()
+                    list_predictions_pixel.append(value)
+                
+                value = np.count_nonzero(list_predictions_pixel)
+                result[r, c] = value
 
-    import cv2
-    cv2.imwrite(f"pruebas/SRC-{page}.png", list_images[page].numpy()[0,0,:,:]*255)
+        from matplotlib import pyplot as plt
+        plt.imshow(result, cmap='Reds', vmin=np.amin(result), vmax=np.amax(result))
+        plt.axis('off')  # Opcional: eliminar los ejes
+        plt.savefig(f'pruebas/{page}_{num_pred}preds.png', dpi=300, bbox_inches='tight', pad_inches=0)
+        plt.close()
+
+        import cv2
+        cv2.imwrite(f"pruebas/SRC-{page}.png", list_images[page].numpy()[0,0,:,:]*255)
 
     # Calculate mean of F1 and IoU scores
     bin_F1score_sum, bin_precision_sum, bin_recall_sum= metrics.getF1_from_TP_FP_FN(tp,fp,fn)

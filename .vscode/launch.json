@@ -13,7 +13,7 @@
             "args": [
                     "-db_train", "SEILS",
                     "-db_test", "SEILS",
-                    "-seed", "51"
+                    "-seed", "927"
                 ]
         }
     ]

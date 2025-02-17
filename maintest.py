@@ -5,7 +5,7 @@ import inference
 import utilsParameters
 
 import argparse
-
+import os
 
 def menu():
     parser = argparse.ArgumentParser(description='MonteCarlo dropout for staff retrieval')
@@ -19,9 +19,11 @@ def menu():
     print('CONFIG:\n -', str(args).replace('Namespace(','').replace(')','').replace(', ', '\n - '))
 
     return args
-
+0
 
 def saveLogs(logs, filepath):
+    # Crear las carpetas si no existen
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
     with open(filepath, 'w') as myfile:
         myfile.write(logs)
 
@@ -191,7 +193,7 @@ def run_DropoutCombination(config):
 
     uses_redimension_vertical = True
     uses_redimension_horizontal = True
-    all_combinations_experiment = [utilsParameters.PredictionsCombinationType.VOTES]
+    all_combinations_experiment = [utilsParameters.PredictionsCombinationType.MEAN]
     num_repetitions_experiment = [75]
     MODELS_TO_TEST = [
         utilsParameters.ForwardParameters(
@@ -199,9 +201,10 @@ def run_DropoutCombination(config):
             uses_redimension_horizontal=uses_redimension_horizontal,
             uses_redimension_vertical=uses_redimension_vertical,
             train_dropout=0.3,
-            val_dropout=[.3,.4,.5],
+            val_dropout=[.3], #[.3,.4,.5]
             times_pass_model= num_repetitions_experiment,
-            type_combination=all_combinations_experiment
+            type_combination=all_combinations_experiment,
+            bin_umbral = 0.4
             ),
         utilsParameters.ForwardParameters(
             utilsParameters.DATASET_SEILS,
@@ -210,7 +213,8 @@ def run_DropoutCombination(config):
             train_dropout=0.2,
             val_dropout=[.2],
             times_pass_model= num_repetitions_experiment,
-            type_combination=all_combinations_experiment
+            type_combination=all_combinations_experiment,
+            bin_umbral = 0.5
             ),
         utilsParameters.ForwardParameters(
             utilsParameters.DATASET_FMT_C,
@@ -219,17 +223,19 @@ def run_DropoutCombination(config):
             train_dropout=0.2,
             val_dropout=[.2],
             times_pass_model= num_repetitions_experiment,
-            type_combination=all_combinations_experiment
+            type_combination=all_combinations_experiment,
+            bin_umbral = 0.4
             )
     ]
     
-    votes_threshold_list = [.25, .75, .1]
+    votes_threshold_list = [1.]
     bin_th_list = []
     idx_experiment = 0
 
     for TEST_PARAMETER in MODELS_TO_TEST:
         if config.db_train is not None and TEST_PARAMETER.dataset_name != config.db_train:
             continue
+        bin_th = TEST_PARAMETER.bin_umbral
         for type_combination in TEST_PARAMETER.type_combination:
             for times_pass_model in TEST_PARAMETER.times_pass_model:
                 for val_dropout_item in TEST_PARAMETER.val_dropout:
@@ -248,11 +254,15 @@ def run_DropoutCombination(config):
                                     save_val_imgs=save_val_imgs
                                 )
                             '''
-                            bin_th = 0.5 #quitar
+                            
+                            if votes_threshold == 1:
+                                times_pass_model = 2
+                            #bin_th = 0.4 #quitar
                             logs_experiment = ""#quitar
                             bin_th_list.append(bin_th)
                             if logs == "":
-                                logs = logs_experiment + "\n"
+                                if logs_experiment != "":
+                                    logs = logs_experiment + "\n"
                             else:
                                 if logs_experiment != "":
                                     logs += logs_experiment.split("\n")[1] + "\n"
@@ -288,13 +298,15 @@ def run_DropoutCombination(config):
                                     save_val_imgs=save_val_imgs
                                 )
                         '''
-                        bin_th = 0.5
+                        #bin_th = 0.4
                         logs_experiment = ""
                         bin_th_list.append(bin_th)
                         if logs == "":
-                            logs = logs_experiment + "\n"
+                            if logs_experiment != "":
+                                logs = logs_experiment + "\n"
                         else:
-                            logs += logs_experiment.split("\n")[1] + "\n"
+                            if logs_experiment != "":
+                                logs += logs_experiment.split("\n")[1] + "\n"
                         saveLogs(logs, path_results)
                         
                         for db_test in config.db_test:
@@ -309,7 +321,8 @@ def run_DropoutCombination(config):
                                     save_test_info=save_test_info,
                                     save_test_img=save_test_img,
                                     bin_umbral_for_model=bin_th,
-                                    votes_threshold=0
+                                    votes_threshold=0,
+                                    seed_value = config.seed
                                     )
                             logs += logs_experiment.split("\n")[1] + "\n"
                         
@@ -318,6 +331,8 @@ def run_DropoutCombination(config):
                     saveLogs(logs, path_results)
 
     saveLogs(logs, path_results)
+    print("Results saved in...")
+    print(path_results)
     
         
 if __name__ == '__main__':
