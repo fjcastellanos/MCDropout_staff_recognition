@@ -186,14 +186,14 @@ def run_DropoutCombination(config):
     # Models parameters
     save_val_info = False
     save_val_imgs = False
-    save_test_img = False
+    save_test_img = True
     save_test_info = False
     
     path_results = "results/seed_" + str(config.seed) + "/results_run_DropoutCombination_" + config.db_train + "_color_temperature_matrix.txt"
 
     uses_redimension_vertical = True
     uses_redimension_horizontal = True
-    all_combinations_experiment = [utilsParameters.PredictionsCombinationType.VOTES]
+    all_combinations_experiment = [utilsParameters.PredictionsCombinationType.MEAN]
     num_repetitions_experiment = [75]
     MODELS_TO_TEST = [
         utilsParameters.ForwardParameters(
@@ -228,7 +228,7 @@ def run_DropoutCombination(config):
             )
     ]
     
-    votes_threshold_list = [.25, .5, .75, 1.]
+    votes_threshold_list = [1.]
     bin_th_list = []
     idx_experiment = 0
 

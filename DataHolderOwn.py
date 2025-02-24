@@ -77,6 +77,7 @@ class TestMusicDataset(torch.utils.data.Dataset):
         path_json = self.jsonPaths[idx]
 
         example: MuretData.ImageExample = utilsIO.read_json_datafile(path_json, path_img, self.resize_shape)
+        img_orig = example
         example.resize_examples(self.resize_shape)
 
         boxes, _ = example.dataAsTensor()
@@ -85,7 +86,7 @@ class TestMusicDataset(torch.utils.data.Dataset):
         if self.transforms is not None:
             img = self.transforms(img)
 
-        return img, boxes
+        return img, boxes, img_orig, path_img
 
     def getImagesPaths(self):
         return self.imagesPaths

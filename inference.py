@@ -7,6 +7,7 @@ import utilsIO
 import metrics
 import SAEModel
 import drawing
+import dibujar_gt_and_preds
 
 import gc
 from PIL import  Image as PILImage
@@ -134,7 +135,7 @@ def TFMTest(
         dataset_name=dataset_name_test
         )
 
-
+    
     # Evaluation
     bin_F1score_sum = 0
     bin_precision_sum = 0
@@ -153,7 +154,7 @@ def TFMTest(
     list_results = []
     with torch.no_grad():
         # Iterate over each example of the eval dataset
-        for iteration, batch in enumerate(data_loader_test):
+        for iteration, batch, img_orig, path_img in enumerate(data_loader_test):
             if utilsParameters.DEBUG_FLAG:
                 print(f'Eval with batch {iteration}/{len(data_loader_test)}')
 
@@ -231,14 +232,18 @@ def TFMTest(
                     plot=False,
                     save=save_test_img
                     )
+            if save_test_img:
+                image_jp = dibujar_gt_and_preds. draw_regions(img_orig, targetBoxes, boxes)
+                image_name = f'{test_img_folder}/JP/{path_img}.png'
+                cv2.imwrite(image_name, image_jp)
+
 
             if utilsParameters.DEBUG_FLAG:
                 print()
 
             torch.cuda.empty_cache()
             # gc.collect()
-
-
+        
     list_results_numpy = []
     for results_image in list_results:
         emptylist=[]
@@ -246,6 +251,7 @@ def TFMTest(
         for results_prediction in results_image:
             list_results_numpy[len(list_results_numpy)-1].append(results_prediction.numpy())
             
+    
     pass
 
     save_images = False
